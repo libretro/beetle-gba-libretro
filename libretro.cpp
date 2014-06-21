@@ -73,20 +73,6 @@ static Deinterlacer deint;
 #define FB_HEIGHT 102
 static bool is_pal = false;
 
-#elif defined(WANT_WSWAN_EMU)
-#define MEDNAFEN_CORE_NAME_MODULE "wswan"
-#define MEDNAFEN_CORE_NAME "Mednafen WonderSwan"
-#define MEDNAFEN_CORE_VERSION "v0.9.35.1"
-#define MEDNAFEN_CORE_EXTENSIONS "ws|wsc"
-#define MEDNAFEN_CORE_TIMING_FPS 75.47
-#define MEDNAFEN_CORE_GEOMETRY_BASE_W (game->nominal_width)
-#define MEDNAFEN_CORE_GEOMETRY_BASE_H (game->nominal_height)
-#define MEDNAFEN_CORE_GEOMETRY_MAX_W 224
-#define MEDNAFEN_CORE_GEOMETRY_MAX_H 144
-#define MEDNAFEN_CORE_GEOMETRY_ASPECT_RATIO (4.0 / 3.0)
-#define FB_WIDTH 224
-#define FB_HEIGHT 144
-
 #elif defined(WANT_GBA_EMU)
 #define MEDNAFEN_CORE_NAME_MODULE "gba"
 #define MEDNAFEN_CORE_NAME "Mednafen VBA-M"
@@ -255,12 +241,6 @@ static void check_variables(void)
 #define MAX_BUTTONS 9
 static uint8_t input_buf[MAX_PLAYERS][2] = {0};
 
-#elif defined(WANT_WSWAN_EMU)
-
-#define MAX_PLAYERS 1
-#define MAX_BUTTONS 11
-static uint16_t input_buf;
-
 #elif defined(WANT_GBA_EMU)
 
 #define MAX_PLAYERS 1
@@ -295,8 +275,6 @@ static void hookup_ports(bool force)
       return;
 
 #if defined(WANT_LYNX_EMU)
-   currgame->SetInput(0, "gamepad", &input_buf);
-#elif defined(WANT_WSWAN_EMU)
    currgame->SetInput(0, "gamepad", &input_buf);
 #elif defined(WANT_GBA_EMU)
    // Possible endian bug ...
@@ -398,36 +376,6 @@ static void update_input(void)
       input_buf[j][0] = (input_state >> 0) & 0xff;
       input_buf[j][1] = (input_state >> 8) & 0xff;
    }
-#elif defined(WANT_WSWAN_EMU)
-   input_buf = 0;
-
-   static unsigned map[] = {
-      RETRO_DEVICE_ID_JOYPAD_UP, //X Cursor horizontal-layout games
-      RETRO_DEVICE_ID_JOYPAD_RIGHT, //X Cursor horizontal-layout games
-      RETRO_DEVICE_ID_JOYPAD_DOWN, //X Cursor horizontal-layout games
-      RETRO_DEVICE_ID_JOYPAD_LEFT, //X Cursor horizontal-layout games
-      RETRO_DEVICE_ID_JOYPAD_R2, //Y Cursor UP vertical-layout games
-      RETRO_DEVICE_ID_JOYPAD_R, //Y Cursor RIGHT vertical-layout games
-      RETRO_DEVICE_ID_JOYPAD_L2, //Y Cursor DOWN vertical-layout games
-      RETRO_DEVICE_ID_JOYPAD_L, //Y Cursor LEFT vertical-layout games
-      RETRO_DEVICE_ID_JOYPAD_START,
-      RETRO_DEVICE_ID_JOYPAD_A,
-      RETRO_DEVICE_ID_JOYPAD_B,
-   };
-
-   for (unsigned i = 0; i < MAX_BUTTONS; i++)
-      input_buf |= map[i] != -1u &&
-         input_state_cb(0, RETRO_DEVICE_JOYPAD, 0, map[i]) ? (1 << i) : 0;
-
-#ifdef MSB_FIRST
-   union {
-      uint8_t b[2];
-      uint16_t s;
-   } u;
-   u.s = input_buf;
-   input_buf = u.b[0] | u.b[1] << 8;
-#endif
-
 #elif defined(WANT_GBA_EMU)
    input_buf = 0;
    static unsigned map[] = {

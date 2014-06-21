@@ -43,25 +43,6 @@ CORE_SOURCES := $(CORE_DIR)/cart.cpp \
 	$(CORE_DIR)/susie.cpp \
 	$(CORE_DIR)/system.cpp
 TARGET_NAME := mednafen_lynx_libretro
-else ifeq ($(core), wswan)
-   core = wswan
-   NEED_BPP = 32
-   NEED_BLIP = 1
-   NEED_STEREO_SOUND = 1
-	WANT_NEW_API = 1
-   CORE_DEFINE := -DWANT_WSWAN_EMU
-   CORE_DIR := $(MEDNAFEN_DIR)/wswan
-
-CORE_SOURCES := $(CORE_DIR)/gfx.cpp \
-	$(CORE_DIR)/main.cpp \
-	$(CORE_DIR)/wswan-memory.cpp \
-	$(CORE_DIR)/v30mz.cpp \
-	$(CORE_DIR)/sound.cpp \
-	$(CORE_DIR)/tcache.cpp \
-	$(CORE_DIR)/interrupt.cpp \
-	$(CORE_DIR)/eeprom.cpp \
-	$(CORE_DIR)/rtc.cpp
-TARGET_NAME := mednafen_wswan_libretro
 else ifeq ($(core), gba)
    core = gba
    NEED_BPP = 32

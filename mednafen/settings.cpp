@@ -43,19 +43,6 @@ uint64 MDFN_GetSettingUI(const char *name)
       return 1024; /* TODO - make configurable */
    if (!strcmp("pcfx.resamp_quality", name))
       return 3; /* TODO - make configurable */
-#elif defined(WANT_WSWAN_EMU)
-   if (!strcmp("wswan.ocmultiplier", name))
-      return 1;
-   if (!strcmp("wswan.bday", name))
-      return 23;
-   if (!strcmp("wswan.bmonth", name))
-      return 6;
-   if (!strcmp("wswan.byear", name))
-      return 1989;
-   if (!strcmp("wswan.slstart", name))
-      return 4;
-   if (!strcmp("wswan.slend", name))
-      return 235;
 #endif
 
    fprintf(stderr, "unhandled setting UI: %s\n", name);
@@ -67,11 +54,6 @@ int64 MDFN_GetSettingI(const char *name)
 #if defined(WANT_PCFX_EMU)
    if (!strcmp("pcfx.cpu_emulation", name))
       return 2;
-#elif defined(WANT_WSWAN_EMU)
-   if (!strcmp("wswan.sex", name))
-      return 0;
-   if (!strcmp("wswan.blood", name))
-      return 0;
 #endif
    fprintf(stderr, "unhandled setting I: %s\n", name);
    return 0;
@@ -84,9 +66,6 @@ double MDFN_GetSettingF(const char *name)
       return 0.0000009;
    if (!strcmp("pcfx.mouse_sensitivity", name))
       return  	1.25; /* TODO - make configurable */
-#elif defined(WANT_WSWAN_EMU)
-   if (!strcmp("wswan.mouse_sensitivity", name))
-      return 0.50;
 #endif
 
    fprintf(stderr, "unhandled setting F: %s\n", name);
@@ -126,13 +105,6 @@ bool MDFN_GetSettingB(const char *name)
       return 0;
    if (!strcmp("snes.input.port2.multitap", name))
       return 0;
-#elif defined(WANT_WSWAN_EMU)
-   if (!strcmp("wswan.forcemono", name))
-      return 0;
-   if (!strcmp("wswan.language", name))
-      return 1;
-   if (!strcmp("wswan.correct_aspect", name))
-      return 1;
 #endif
    /* CDROM */
    if (!strcmp("cdrom.lec_eval", name))
@@ -159,9 +131,6 @@ std::string MDFN_GetSettingS(const char *name)
       return std::string("pcfx.bios");
    if (!strcmp("pcfx.fxscsi", name))
       return std::string("pcfx.fxscsi");
-#elif defined(WANT_WSWAN_EMU)
-   if (!strcmp("wswan.name", name))
-      return std::string("Mednafen");
 #endif
    /* FILESYS */
    if (!strcmp("filesys.path_firmware", name))
