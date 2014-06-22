@@ -100,20 +100,6 @@ static bool is_pal = false;
 #define MEDNAFEN_CORE_GEOMETRY_ASPECT_RATIO (4.0 / 3.0)
 #define FB_WIDTH 512
 #define FB_HEIGHT 512
-
-#elif defined(WANT_PCFX_EMU)
-#define MEDNAFEN_CORE_NAME_MODULE "pcfx"
-#define MEDNAFEN_CORE_NAME "Mednafen PC-FX"
-#define MEDNAFEN_CORE_VERSION "v0.9.33.3"
-#define MEDNAFEN_CORE_EXTENSIONS "cue|ccd"
-#define MEDNAFEN_CORE_TIMING_FPS 59.94
-#define MEDNAFEN_CORE_GEOMETRY_BASE_W (game->nominal_width)
-#define MEDNAFEN_CORE_GEOMETRY_BASE_H (game->nominal_height)
-#define MEDNAFEN_CORE_GEOMETRY_MAX_W 341
-#define MEDNAFEN_CORE_GEOMETRY_MAX_H 480
-#define MEDNAFEN_CORE_GEOMETRY_ASPECT_RATIO (4.0 / 3.0)
-#define FB_WIDTH 344
-#define FB_HEIGHT 480
 #endif
 
 
@@ -253,12 +239,6 @@ static uint16_t input_buf;
 #define MAX_BUTTONS 14
 static uint8_t input_buf[MAX_PLAYERS][2];
 
-#elif defined(WANT_PCFX_EMU)
-
-#define MAX_PLAYERS 2
-#define MAX_BUTTONS 12
-static uint16_t input_buf[MAX_PLAYERS];
-
 #else
 
 #define MAX_PLAYERS 1
@@ -329,9 +309,7 @@ bool retro_load_game(const struct retro_game_info *info)
 	deint.ClearState();
 #endif
 
-#if !defined(WANT_PCFX_EMU)
    hookup_ports(true);
-#endif
 
    check_variables();
 
@@ -438,40 +416,6 @@ static void update_input(void)
       input_buf[j][0] = (input_state >> 0) & 0xff;
       input_buf[j][1] = (input_state >> 8) & 0xff;
 #endif
-   }
-
-#elif defined(WANT_PCFX_EMU)
-   input_buf[0] = input_buf[1] = 0;
-   static unsigned map[] = {
-      RETRO_DEVICE_ID_JOYPAD_A,
-      RETRO_DEVICE_ID_JOYPAD_B,
-      RETRO_DEVICE_ID_JOYPAD_X,
-      RETRO_DEVICE_ID_JOYPAD_Y,
-      RETRO_DEVICE_ID_JOYPAD_L,
-      RETRO_DEVICE_ID_JOYPAD_R,
-      RETRO_DEVICE_ID_JOYPAD_SELECT,
-      RETRO_DEVICE_ID_JOYPAD_START,
-      RETRO_DEVICE_ID_JOYPAD_UP,
-      RETRO_DEVICE_ID_JOYPAD_RIGHT,
-      RETRO_DEVICE_ID_JOYPAD_DOWN,
-      RETRO_DEVICE_ID_JOYPAD_LEFT,
-   };
-
-   for (unsigned j = 0; j < MAX_PLAYERS; j++)
-   {
-      for (unsigned i = 0; i < MAX_BUTTONS; i++)
-         input_buf[j] |= map[i] != -1u &&
-            input_state_cb(j, RETRO_DEVICE_JOYPAD, 0, map[i]) ? (1 << i) : 0;
-
-#ifdef MSB_FIRST
-      union {
-         uint8_t b[2];
-         uint16_t s;
-      } u;
-      u.s = input_buf[j];
-      input_buf[j] = u.b[0] | u.b[1] << 8;
-#endif
-
    }
 #else
    input_buf[0] = 0;
@@ -633,40 +577,13 @@ void retro_set_controller_port_device(unsigned in_port, unsigned device)
 
    if (!currgame)
       return;
-
-#if defined(WANT_PCFX_EMU)
-   switch(device)
-   {
-      case RETRO_DEVICE_JOYPAD:
-         if (currgame->SetInput)
-            currgame->SetInput(in_port, "gamepad", &input_buf[in_port]);
-         break;
-      case RETRO_DEVICE_MOUSE:
-         if (currgame->SetInput)
-            currgame->SetInput(in_port, "mouse", &input_buf[in_port]);
-         break;
-   }
-#endif
 }
 
 void retro_set_environment(retro_environment_t cb)
 {
    environ_cb = cb;
 
-#if defined(WANT_PCFX_EMU)
-   static const struct retro_controller_description pads[] = {
-      { "PCFX Joypad", RETRO_DEVICE_JOYPAD },
-      { "Mouse", RETRO_DEVICE_MOUSE },
-   };
-
-   static const struct retro_controller_info ports[] = {
-      { pads, 2 },
-      { pads, 2 },
-      { 0 },
-   };
-
-   environ_cb(RETRO_ENVIRONMENT_SET_CONTROLLER_INFO, (void*)ports);
-#elif defined(WANT_GBA_EMU)
+#if defined(WANT_GBA_EMU)
    static const struct retro_variable vars[] = {
       { "gba_hle", "HLE bios emulation; enabled|disabled" },
       { NULL, NULL },

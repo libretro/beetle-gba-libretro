@@ -32,18 +32,6 @@ bool MDFN_SaveSettings(const char *path)
 
 uint64 MDFN_GetSettingUI(const char *name)
 {
-#if defined(WANT_PCFX_EMU)
-   if (!strcmp("pcfx.cdspeed", name))
-      return 2;
-   if (!strcmp("pcfx.slend", name))
-      return 239;
-   if (!strcmp("pcfx.slstart", name))
-      return 0;
-   if (!strcmp("pcfx.high_dotclock_width", name))
-      return 1024; /* TODO - make configurable */
-   if (!strcmp("pcfx.resamp_quality", name))
-      return 3; /* TODO - make configurable */
-#endif
 
    fprintf(stderr, "unhandled setting UI: %s\n", name);
    return 0;
@@ -51,22 +39,12 @@ uint64 MDFN_GetSettingUI(const char *name)
 
 int64 MDFN_GetSettingI(const char *name)
 {
-#if defined(WANT_PCFX_EMU)
-   if (!strcmp("pcfx.cpu_emulation", name))
-      return 2;
-#endif
    fprintf(stderr, "unhandled setting I: %s\n", name);
    return 0;
 }
 
 double MDFN_GetSettingF(const char *name)
 {
-#if defined(WANT_PCFX_EMU)
-   if (!strcmp("pcfx.resamp_rate_error", name))
-      return 0.0000009;
-   if (!strcmp("pcfx.mouse_sensitivity", name))
-      return  	1.25; /* TODO - make configurable */
-#endif
 
    fprintf(stderr, "unhandled setting F: %s\n", name);
    return 0;
@@ -79,26 +57,7 @@ bool MDFN_GetSettingB(const char *name)
    /* LIBRETRO */
    if (!strcmp("libretro.cd_load_into_ram", name))
       return 0;
-#if defined(WANT_PCFX_EMU)
-   if (!strcmp("pcfx.disable_softreset", name))
-      return 0; /* TODO - make configurable */
-   if (!strcmp("pcfx.disable_softreset", name))
-      return 0; /* TODO - make configurable */
-   if (!strcmp("pcfx.input.port1.multitap", name))
-      return 0; /* TODO - make configurable */
-   if (!strcmp("pcfx.input.port2.multitap", name))
-      return 0; /* TODO - make configurable */
-   if (!strcmp("pcfx.nospritelimit", name))
-      return 0; /* TODO - make configurable */
-   if (!strcmp("pcfx.adpcm.suppress_channel_reset_clicks", name))
-      return 0; /* TODO - make configurable */
-   if (!strcmp("pcfx.disable_bram", name))
-      return 0; /* TODO - make configurable */
-   if (!strcmp("pcfx.adpcm.emulate_buggy_codec", name))
-      return 0; /* TODO - make configurable */
-   if (!strcmp("pcfx.rainbow.chromaip", name))
-      return 0; /* TODO - make configurable */
-#elif defined(WANT_SNES_EMU)
+#if defined(WANT_SNES_EMU)
    if (!strcmp("snes.correct_aspect", name))
       return 0;
    if (!strcmp("snes.input.port1.multitap", name))
@@ -126,11 +85,6 @@ std::string MDFN_GetSettingS(const char *name)
 #if defined(WANT_GBA_EMU)
    if (!strcmp("gba.bios", name))
       return setting_gba_hle ? std::string("") : std::string("gba_bios.bin");
-#elif defined(WANT_PCFX_EMU)
-   if (!strcmp("pcfx.bios", name))
-      return std::string("pcfx.bios");
-   if (!strcmp("pcfx.fxscsi", name))
-      return std::string("pcfx.fxscsi");
 #endif
    /* FILESYS */
    if (!strcmp("filesys.path_firmware", name))
