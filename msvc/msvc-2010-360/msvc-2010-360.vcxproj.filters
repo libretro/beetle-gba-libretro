@@ -128,9 +128,6 @@
     <ClCompile Include="..\..\..\mednafen\gba\flash.cpp">
       <Filter>Source Files\mednafen\gba</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\mednafen\gba\GBA.cpp">
-      <Filter>Source Files\mednafen\gba</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\mednafen\gba\GBAinline.cpp">
       <Filter>Source Files\mednafen\gba</Filter>
     </ClCompile>

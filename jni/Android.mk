@@ -43,7 +43,6 @@ CORE_SOURCES := $(CORE_DIR)/arm.cpp \
 	$(CORE_DIR)/bios.cpp \
 	$(CORE_DIR)/eeprom.cpp \
 	$(CORE_DIR)/flash.cpp \
-	$(CORE_DIR)/GBA.cpp \
 	$(CORE_DIR)/GBAinline.cpp \
 	$(CORE_DIR)/Gfx.cpp \
 	$(CORE_DIR)/Globals.cpp \

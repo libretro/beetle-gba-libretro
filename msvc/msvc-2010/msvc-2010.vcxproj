@@ -21,7 +21,6 @@
     <ClCompile Include="..\..\..\mednafen\gba\bios.cpp" />
     <ClCompile Include="..\..\..\mednafen\gba\eeprom.cpp" />
     <ClCompile Include="..\..\..\mednafen\gba\flash.cpp" />
-    <ClCompile Include="..\..\..\mednafen\gba\GBA.cpp" />
     <ClCompile Include="..\..\..\mednafen\gba\GBAinline.cpp" />
     <ClCompile Include="..\..\..\mednafen\gba\Gfx.cpp" />
     <ClCompile Include="..\..\..\mednafen\gba\Globals.cpp" />
