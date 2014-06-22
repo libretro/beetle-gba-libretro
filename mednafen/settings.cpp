@@ -45,7 +45,10 @@ int64 MDFN_GetSettingI(const char *name)
 
 double MDFN_GetSettingF(const char *name)
 {
-
+#if defined(WANT_SNES_EMU)
+   if (!strcmp("snes.mouse_sensitivity", name))
+      return 0.50;
+#endif
    fprintf(stderr, "unhandled setting F: %s\n", name);
    return 0;
 }
