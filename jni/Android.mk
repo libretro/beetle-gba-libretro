@@ -56,7 +56,7 @@ else ifeq ($(core), gba)
 	NEED_STEREO_SOUND = 1
    NEED_CRC32 = 1
    CORE_DEFINE := -DWANT_GBA_EMU
-   CORE_DIR := $(MEDNAFEN_DIR)/gba-09333
+   CORE_DIR := $(MEDNAFEN_DIR)/gba
 
 CORE_SOURCES := $(CORE_DIR)/arm.cpp \
 	$(CORE_DIR)/bios.cpp \
