@@ -6,11 +6,6 @@ void KING_SetPixelFormat(const MDFN_PixelFormat &format); //int rshift, int gshi
 uint16 FXVCE_Read16(uint32 A);
 void FXVCE_Write16(uint32 A, uint16 V);
 
-#ifdef WANT_DEBUGGER
-uint32 FXVDCVCE_GetRegister(const std::string &name, std::string *special);
-void FXVDCVCE_SetRegister(const std::string &name, uint32 value);
-#endif
-
 uint8 KING_Read8(const v810_timestamp_t timestamp, uint32 A);
 uint16 KING_Read16(const v810_timestamp_t timestamp, uint32 A);
 
@@ -29,11 +24,6 @@ uint8 KING_RB_Fetch();
 void KING_SetLayerEnableMask(uint64 mask);
 
 int KING_StateAction(StateMem *sm, int load, int data_only);
-
-#ifdef WANT_DEBUGGER
-uint32 KING_GetRegister(const std::string &name, std::string *special);
-void KING_SetRegister(const std::string &name, uint32 value);
-#endif
 
 void KING_SetGraphicsDecode(MDFN_Surface *surface, int line, int which, int xscroll, int yscroll, int pbn);
 

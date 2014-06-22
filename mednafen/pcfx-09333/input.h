@@ -49,8 +49,5 @@ void FXINPUT_ResetTS(int32 ts_base);
 
 extern InputInfoStruct PCFXInputInfo;
 
-#ifdef WANT_DEBUGGER
-bool FXINPUT_GetRegister(const std::string &name, uint32 &value, std::string *special);
-#endif
 
 #endif

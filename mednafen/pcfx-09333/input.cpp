@@ -118,26 +118,6 @@ void FXINPUT_SettingChanged(const char *name)
 }
 
 
-#ifdef WANT_DEBUGGER
-bool FXINPUT_GetRegister(const std::string &name, uint32 &value, std::string *special)
-{
- if(name == "KPCTRL0" || name == "KPCTRL1")
- {
-  value = control[name[6] - '0'];
-  if(special)
-  {
-   char buf[256];
-
-   trio_snprintf(buf, 256, "Trigger: %d, MOD: %d, IOS: %s", value & 0x1, value & 0x2, (value & 0x4) ? "Input" : "Output");
-
-   *special = std::string(buf);
-  }
-  return(TRUE);
- }
- return(FALSE);
-}
-#endif
-
 static INLINE int32 min(int32 a, int32 b, int32 c)
 {
  int32 ret = a;
