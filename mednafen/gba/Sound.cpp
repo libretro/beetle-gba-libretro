@@ -23,10 +23,10 @@
 
 #include <math.h>
 
-#include <blip/Blip_Buffer.h>
-#include "gb_apu/Gb_Apu.h"
+#include "../include/blip/Blip_Buffer.h"
+#include "../hw_sound/gb_apu/Gb_Apu.h"
 
-#include <blip/Stereo_Buffer.h>
+#include "../include/blip/Stereo_Buffer.h"
 
 namespace MDFN_IEN_GBA
 {

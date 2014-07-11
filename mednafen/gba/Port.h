@@ -20,7 +20,7 @@
 #ifndef VBA_PORT_H
 #define VBA_PORT_H
 
-#include <mednafen/masmem.h>
+#include "../masmem.h"
 
 #define READ16LE(base) LoadU16_LE(base)
 #define READ32LE(base) LoadU32_LE(base)

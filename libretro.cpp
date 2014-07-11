@@ -77,7 +77,7 @@ std::string retro_save_directory;
 
 #include <stdarg.h>
 #include <string.h>
-#include <trio/trio.h>
+#include "mednafen/include/trio/trio.h"
 #include <errno.h>
 
 #include "mednafen/FileStream.h"
@@ -182,7 +182,7 @@ uint8 biosProtected[4];
 
 static const uint32 myROM[] = 
 {
- #include "myrom.h"
+ #include "mednafen/gba/myrom.h"
 };
 
 union SysCM

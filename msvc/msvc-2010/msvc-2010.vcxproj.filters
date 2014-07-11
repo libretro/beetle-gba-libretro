@@ -32,140 +32,131 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\mednafen\Stream.cpp">
-      <Filter>Source Files\mednafen</Filter>
+    <ClCompile Include="..\..\libretro.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\mednafen\endian.cpp">
-      <Filter>Source Files\mednafen</Filter>
+    <ClCompile Include="..\..\scrc32.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\mednafen\error.cpp">
-      <Filter>Source Files\mednafen</Filter>
+    <ClCompile Include="..\..\mednafen\gba\arm.cpp">
+      <Filter>Source Files\mednafen\gba</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\mednafen\file.cpp">
-      <Filter>Source Files\mednafen</Filter>
+    <ClCompile Include="..\..\mednafen\gba\bios.cpp">
+      <Filter>Source Files\mednafen\gba</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\mednafen\FileStream.cpp">
-      <Filter>Source Files\mednafen</Filter>
+    <ClCompile Include="..\..\mednafen\gba\eeprom.cpp">
+      <Filter>Source Files\mednafen\gba</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\mednafen\FileWrapper.cpp">
-      <Filter>Source Files\mednafen</Filter>
+    <ClCompile Include="..\..\mednafen\gba\flash.cpp">
+      <Filter>Source Files\mednafen\gba</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\mednafen\general.cpp">
-      <Filter>Source Files\mednafen</Filter>
+    <ClCompile Include="..\..\mednafen\gba\GBAinline.cpp">
+      <Filter>Source Files\mednafen\gba</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\mednafen\math_ops.cpp">
-      <Filter>Source Files\mednafen</Filter>
+    <ClCompile Include="..\..\mednafen\gba\Gfx.cpp">
+      <Filter>Source Files\mednafen\gba</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\mednafen\md5.cpp">
-      <Filter>Source Files\mednafen</Filter>
+    <ClCompile Include="..\..\mednafen\gba\Globals.cpp">
+      <Filter>Source Files\mednafen\gba</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\mednafen\mednafen.cpp">
-      <Filter>Source Files\mednafen</Filter>
+    <ClCompile Include="..\..\mednafen\gba\Mode0.cpp">
+      <Filter>Source Files\mednafen\gba</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\mednafen\MemoryStream.cpp">
-      <Filter>Source Files\mednafen</Filter>
+    <ClCompile Include="..\..\mednafen\gba\Mode1.cpp">
+      <Filter>Source Files\mednafen\gba</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\mednafen\mempatcher.cpp">
-      <Filter>Source Files\mednafen</Filter>
+    <ClCompile Include="..\..\mednafen\gba\Mode2.cpp">
+      <Filter>Source Files\mednafen\gba</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\mednafen\okiadpcm.cpp">
-      <Filter>Source Files\mednafen</Filter>
+    <ClCompile Include="..\..\mednafen\gba\Mode3.cpp">
+      <Filter>Source Files\mednafen\gba</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\mednafen\settings.cpp">
-      <Filter>Source Files\mednafen</Filter>
+    <ClCompile Include="..\..\mednafen\gba\Mode4.cpp">
+      <Filter>Source Files\mednafen\gba</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\mednafen\state.cpp">
-      <Filter>Source Files\mednafen</Filter>
+    <ClCompile Include="..\..\mednafen\gba\Mode5.cpp">
+      <Filter>Source Files\mednafen\gba</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\mednafen\sound\Blip_Buffer.cpp">
+    <ClCompile Include="..\..\mednafen\gba\RTC.cpp">
+      <Filter>Source Files\mednafen\gba</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\mednafen\gba\Sound.cpp">
+      <Filter>Source Files\mednafen\gba</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\mednafen\gba\sram.cpp">
+      <Filter>Source Files\mednafen\gba</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\mednafen\gba\thumb.cpp">
+      <Filter>Source Files\mednafen\gba</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\mednafen\hw_sound\gb_apu\Gb_Apu.cpp">
+      <Filter>Source Files\mednafen\hw_sound\gb_apu</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\mednafen\hw_sound\gb_apu\Gb_Apu_State.cpp">
+      <Filter>Source Files\mednafen\hw_sound\gb_apu</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\mednafen\hw_sound\gb_apu\Gb_Oscs.cpp">
+      <Filter>Source Files\mednafen\hw_sound\gb_apu</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\mednafen\sound\Blip_Buffer.cpp">
       <Filter>Source Files\mednafen\sound</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\stubs.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\libretro.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\scrc32.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\mednafen\video\surface.cpp">
-      <Filter>Source Files\mednafen\video</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\mednafen\video\Deinterlacer.cpp">
-      <Filter>Source Files\mednafen\video</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\mednafen\trio\triostr.c">
-      <Filter>Source Files\mednafen\trio</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\mednafen\trio\trio.c">
-      <Filter>Source Files\mednafen\trio</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\mednafen\sound\Stereo_Buffer.cpp">
+    <ClCompile Include="..\..\mednafen\sound\Stereo_Buffer.cpp">
       <Filter>Source Files\mednafen\sound</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\mednafen\hw_sound\gb_apu\Gb_Oscs.cpp">
-      <Filter>Source Files\mednafen\hw_sound\gb_apu</Filter>
+    <ClCompile Include="..\..\mednafen\trio\trio.c">
+      <Filter>Source Files\mednafen\trio</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\mednafen\hw_sound\gb_apu\Gb_Apu.cpp">
-      <Filter>Source Files\mednafen\hw_sound\gb_apu</Filter>
+    <ClCompile Include="..\..\mednafen\trio\triostr.c">
+      <Filter>Source Files\mednafen\trio</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\mednafen\hw_sound\gb_apu\Gb_Apu_State.cpp">
-      <Filter>Source Files\mednafen\hw_sound\gb_apu</Filter>
+    <ClCompile Include="..\..\mednafen\video\Deinterlacer.cpp">
+      <Filter>Source Files\mednafen\video</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\mednafen\gba\thumb.cpp">
-      <Filter>Source Files\mednafen\gba</Filter>
+    <ClCompile Include="..\..\mednafen\video\surface.cpp">
+      <Filter>Source Files\mednafen\video</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\mednafen\gba\arm.cpp">
-      <Filter>Source Files\mednafen\gba</Filter>
+    <ClCompile Include="..\..\mednafen\endian.cpp">
+      <Filter>Source Files\mednafen</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\mednafen\gba\bios.cpp">
-      <Filter>Source Files\mednafen\gba</Filter>
+    <ClCompile Include="..\..\mednafen\error.cpp">
+      <Filter>Source Files\mednafen</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\mednafen\gba\eeprom.cpp">
-      <Filter>Source Files\mednafen\gba</Filter>
+    <ClCompile Include="..\..\mednafen\file.cpp">
+      <Filter>Source Files\mednafen</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\mednafen\gba\flash.cpp">
-      <Filter>Source Files\mednafen\gba</Filter>
+    <ClCompile Include="..\..\mednafen\FileStream.cpp">
+      <Filter>Source Files\mednafen</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\mednafen\gba\GBA.cpp">
-      <Filter>Source Files\mednafen\gba</Filter>
+    <ClCompile Include="..\..\mednafen\FileWrapper.cpp">
+      <Filter>Source Files\mednafen</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\mednafen\gba\GBAinline.cpp">
-      <Filter>Source Files\mednafen\gba</Filter>
+    <ClCompile Include="..\..\mednafen\general.cpp">
+      <Filter>Source Files\mednafen</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\mednafen\gba\Gfx.cpp">
-      <Filter>Source Files\mednafen\gba</Filter>
+    <ClCompile Include="..\..\mednafen\math_ops.cpp">
+      <Filter>Source Files\mednafen</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\mednafen\gba\Globals.cpp">
-      <Filter>Source Files\mednafen\gba</Filter>
+    <ClCompile Include="..\..\mednafen\md5.cpp">
+      <Filter>Source Files\mednafen</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\mednafen\gba\Mode0.cpp">
-      <Filter>Source Files\mednafen\gba</Filter>
+    <ClCompile Include="..\..\mednafen\mednafen.cpp">
+      <Filter>Source Files\mednafen</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\mednafen\gba\Mode1.cpp">
-      <Filter>Source Files\mednafen\gba</Filter>
+    <ClCompile Include="..\..\mednafen\MemoryStream.cpp">
+      <Filter>Source Files\mednafen</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\mednafen\gba\Mode2.cpp">
-      <Filter>Source Files\mednafen\gba</Filter>
+    <ClCompile Include="..\..\mednafen\mempatcher.cpp">
+      <Filter>Source Files\mednafen</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\mednafen\gba\Mode3.cpp">
-      <Filter>Source Files\mednafen\gba</Filter>
+    <ClCompile Include="..\..\mednafen\settings.cpp">
+      <Filter>Source Files\mednafen</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\mednafen\gba\Mode4.cpp">
-      <Filter>Source Files\mednafen\gba</Filter>
+    <ClCompile Include="..\..\mednafen\state.cpp">
+      <Filter>Source Files\mednafen</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\mednafen\gba\Mode5.cpp">
-      <Filter>Source Files\mednafen\gba</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\mednafen\gba\RTC.cpp">
-      <Filter>Source Files\mednafen\gba</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\mednafen\gba\Sound.cpp">
-      <Filter>Source Files\mednafen\gba</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\mednafen\gba\sram.cpp">
-      <Filter>Source Files\mednafen\gba</Filter>
+    <ClCompile Include="..\..\mednafen\Stream.cpp">
+      <Filter>Source Files\mednafen</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>
