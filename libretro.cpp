@@ -994,7 +994,7 @@ void CPUUpdateFlags()
   CPUUpdateFlags(true);
 }
 
-#ifndef LSB_FIRST
+#ifdef MSB_FIRST
 static void CPUSwap(volatile uint32 *a, volatile uint32 *b)
 {
   volatile uint32 c = *b;
