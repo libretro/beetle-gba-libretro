@@ -62,7 +62,7 @@ int GBA_Flash_StateAction(StateMem *sm, int load, int data_only)
 
 bool GBA_Flash_Init(void)
 {
- if(!(flashSaveMemory = (uint8 *)MDFN_malloc(0x20000, _("flash memory"))))
+ if(!(flashSaveMemory = (uint8 *)malloc(0x20000)))
   return(0);
 
  memset(flashSaveMemory, 0x00, 0x20000);

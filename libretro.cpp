@@ -543,61 +543,61 @@ static void CPUCleanUp(void)
 {
  if(rom) 
  {
-  MDFN_free(rom);
+  free(rom);
   rom = NULL;
  }
 
  if(vram)
  {
-  MDFN_free(vram);
+  free(vram);
   vram = NULL;
  }
 
  if(paletteRAM)
  {
-  MDFN_free(paletteRAM);
+  free(paletteRAM);
   paletteRAM = NULL;
  }
   
  if(internalRAM) 
  {
-  MDFN_free(internalRAM);
+  free(internalRAM);
   internalRAM = NULL;
  }
 
  if(workRAM) 
  {
-  MDFN_free(workRAM);
+  free(workRAM);
   workRAM = NULL;
  }
 
  if(bios) 
  {
-  MDFN_free(bios);
+  free(bios);
   bios = NULL;
  }
 
  if(pix)
  {
-  MDFN_free(pix);
+  free(pix);
   pix = NULL;
  }
 
  if(oam) 
  {
-  MDFN_free(oam);
+  free(oam);
   oam = NULL;
  }
 
  if(ioMem)
  {
-  MDFN_free(ioMem);
+  free(ioMem);
   ioMem = NULL;
  }
   
  if(systemColorMap)
  {
-  MDFN_free(systemColorMap);
+  free(systemColorMap);
   systemColorMap = NULL;
  }
 
@@ -633,7 +633,7 @@ static bool LoadCPalette(const char *syspalname, uint8 **ptr, uint32 num_entries
  {
   FileStream fp(colormap_fn.c_str(), FileStream::MODE_READ);
 
-  if(!(*ptr = (uint8 *)MDFN_malloc(num_entries * 3, _("custom color map"))))
+  if(!(*ptr = (uint8 *)malloc(num_entries * 3)))
   {
    MDFN_indent(-1);
    return(false);
@@ -645,7 +645,7 @@ static bool LoadCPalette(const char *syspalname, uint8 **ptr, uint32 num_entries
  {
   if(*ptr)
   {
-   MDFN_free(*ptr);
+   free(*ptr);
    *ptr = NULL;
   }
 
@@ -657,7 +657,7 @@ static bool LoadCPalette(const char *syspalname, uint8 **ptr, uint32 num_entries
  {
   if(*ptr)
   {
-   MDFN_free(*ptr);
+   free(*ptr);
    *ptr = NULL;
   }
 
@@ -742,14 +742,14 @@ static int Load(const char *name, MDFNFILE *fp)
 {
   layerSettings = 0xFF00;
 
-  if(!(rom = (uint8 *)MDFN_malloc(0x2000000, _("ROM"))))
+  if(!(rom = (uint8 *)malloc(0x2000000)))
    return(0);
 
   memset(rom, 0xFF, 0x2000000);
 
-  if(!(workRAM = (uint8 *)MDFN_calloc(1, 0x40000, _("Work RAM"))))
+  if(!(workRAM = (uint8 *)calloc(1, 0x40000)))
   {
-   MDFN_free(rom);
+   free(rom);
    return(0);
   }
 
@@ -792,43 +792,43 @@ static int Load(const char *name, MDFNFILE *fp)
    }
   }
 
-  if(!(bios = (uint8 *)MDFN_calloc(1, 0x4000, _("BIOS ROM"))))
+  if(!(bios = (uint8 *)calloc(1, 0x4000)))
   {
    CPUCleanUp();
    return 0;
   }
 
-  if(!(internalRAM = (uint8 *)MDFN_calloc(1, 0x8000, _("Internal RAM"))))
+  if(!(internalRAM = (uint8 *)calloc(1, 0x8000)))
   {
    CPUCleanUp();
    return 0;
   }
 
-  if(!(paletteRAM = (uint8 *)MDFN_calloc(1, 0x400, _("Palette RAM"))))
+  if(!(paletteRAM = (uint8 *)calloc(1, 0x400)))
   {
    CPUCleanUp();
    return 0;
   }
 
-  if(!(vram = (uint8 *)MDFN_calloc(1, 0x20000, _("VRAM"))))
+  if(!(vram = (uint8 *)calloc(1, 0x20000)))
   {
    CPUCleanUp();
    return 0;
   }
 
-  if(!(oam = (uint8 *)MDFN_calloc(1, 0x400, _("OAM"))))
+  if(!(oam = (uint8 *)calloc(1, 0x400)))
   {
    CPUCleanUp();
    return 0;
   }
 
-  if(!(ioMem = (uint8 *)MDFN_calloc(1, 0x400, _("IO"))))
+  if(!(ioMem = (uint8 *)calloc(1, 0x400)))
   {
    CPUCleanUp();
    return 0;
   }
 
-  if(!(systemColorMap = (SysCM*)MDFN_malloc(sizeof(SysCM), _("GBA Color Map"))))
+  if(!(systemColorMap = (SysCM*)malloc(sizeof(SysCM))))
   {
    CPUCleanUp();
    return(0);
