@@ -1,10 +1,7 @@
 DEBUG = 0
 FRONTEND_SUPPORTS_RGB565 = 1
 
-MEDNAFEN_DIR := mednafen
-MEDNAFEN_LIBRETRO_DIR := mednafen-libretro
-NEED_TREMOR = 0
-LIBRETRO_SOURCES :=
+CORE_DIR := .
 
 ifeq ($(platform),)
 platform = unix
@@ -21,52 +18,15 @@ else ifneq ($(findstring MINGW,$(shell uname -a)),)
 endif
 endif
 
-# If you have a system with 1GB RAM or more - cache the whole 
-# CD for CD-based systems in order to prevent file access delays/hiccups
-CACHE_CD = 0
+core = gba
+NEED_BPP = 32
+NEED_BLIP = 1
+NEED_STEREO_SOUND = 1
+NEED_CRC32 = 1
+WANT_NEW_API = 1
+CORE_DEFINE := -DWANT_GBA_EMU
 
-   core = gba
-   NEED_BPP = 32
-   NEED_BLIP = 1
-   NEED_STEREO_SOUND = 1
-   NEED_CRC32 = 1
-	WANT_NEW_API = 1
-   CORE_DEFINE := -DWANT_GBA_EMU
-   CORE_DIR := $(MEDNAFEN_DIR)/gba
-
-CORE_SOURCES := $(CORE_DIR)/arm.cpp \
-	$(CORE_DIR)/bios.cpp \
-	$(CORE_DIR)/eeprom.cpp \
-	$(CORE_DIR)/flash.cpp \
-	$(CORE_DIR)/GBAinline.cpp \
-	$(CORE_DIR)/Gfx.cpp \
-	$(CORE_DIR)/Globals.cpp \
-	$(CORE_DIR)/Mode0.cpp \
-	$(CORE_DIR)/Mode1.cpp \
-	$(CORE_DIR)/Mode2.cpp \
-	$(CORE_DIR)/Mode3.cpp \
-	$(CORE_DIR)/Mode4.cpp \
-	$(CORE_DIR)/Mode5.cpp \
-	$(CORE_DIR)/RTC.cpp \
-	$(CORE_DIR)/Sound.cpp \
-	$(CORE_DIR)/sram.cpp \
-	$(CORE_DIR)/thumb.cpp
-
-HW_SOUND_SOURCES += $(MEDNAFEN_DIR)/hw_sound/gb_apu/Gb_Apu.cpp \
-						$(MEDNAFEN_DIR)/hw_sound/gb_apu/Gb_Apu_State.cpp \
-						$(MEDNAFEN_DIR)/hw_sound/gb_apu/Gb_Oscs.cpp
-EXTRA_CORE_INCDIR = -I$(MEDNAFEN_DIR)/hw_sound/ -I$(MEDNAFEN_DIR)/include/blip
 TARGET_NAME := mednafen_$(core)_libretro
-
-ifeq ($(NEED_BLIP), 1)
-RESAMPLER_SOURCES += $(MEDNAFEN_DIR)/sound/Blip_Buffer.cpp
-endif
-
-ifeq ($(NEED_STEREO_SOUND), 1)
-SOUND_DEFINE := -DWANT_STEREO_SOUND
-endif
-
-CORE_INCDIR := -I$(CORE_DIR)
 
 ifeq ($(platform), unix)
    TARGET := $(TARGET_NAME).so
@@ -232,75 +192,7 @@ else
    FLAGS += -DHAVE__MKDIR
 endif
 
-ifeq ($(NEED_THREADING), 1)
-   FLAGS += -DWANT_THREADING
-	THREAD_SOURCES += threads.c
-endif
-
-ifeq ($(NEED_CRC32), 1)
-   FLAGS += -DWANT_CRC32
-	LIBRETRO_SOURCES += scrc32.cpp
-endif
-
-ifeq ($(NEED_DEINTERLACER), 1)
-   FLAGS += -DNEED_DEINTERLACER
-endif
-
-ifeq ($(NEED_SCSI_CD), 1)
-   CDROM_SOURCES += $(MEDNAFEN_DIR)/cdrom/scsicd.cpp
-endif
-
-ifeq ($(NEED_CD), 1)
-CDROM_SOURCES += $(MEDNAFEN_DIR)/cdrom/CDAccess.cpp \
-	$(MEDNAFEN_DIR)/cdrom/CDAccess_Image.cpp \
-	$(MEDNAFEN_DIR)/cdrom/CDAccess_CCD.cpp \
-	$(MEDNAFEN_DIR)/cdrom/CDUtility.cpp \
-	$(MEDNAFEN_DIR)/cdrom/lec.cpp \
-	$(MEDNAFEN_DIR)/cdrom/SimpleFIFO.cpp \
-	$(MEDNAFEN_DIR)/cdrom/audioreader.cpp \
-	$(MEDNAFEN_DIR)/cdrom/galois.cpp \
-	$(MEDNAFEN_DIR)/cdrom/recover-raw.cpp \
-	$(MEDNAFEN_DIR)/cdrom/l-ec.cpp \
-	$(MEDNAFEN_DIR)/cdrom/crc32.cpp \
-	$(MEDNAFEN_DIR)/cdrom/cdromif.cpp
-   FLAGS += -DNEED_CD
-endif
-
-ifeq ($(NEED_TREMOR), 1)
-   TREMOR_SRC := $(wildcard $(MEDNAFEN_DIR)/tremor/*.c)
-   FLAGS += -DNEED_TREMOR
-endif
-
-
-MEDNAFEN_SOURCES := $(MEDNAFEN_DIR)/mednafen.cpp \
-	$(MEDNAFEN_DIR)/error.cpp \
-	$(MEDNAFEN_DIR)/math_ops.cpp \
-	$(MEDNAFEN_DIR)/settings.cpp \
-	$(MEDNAFEN_DIR)/general.cpp \
-	$(MEDNAFEN_DIR)/FileWrapper.cpp \
-	$(MEDNAFEN_DIR)/FileStream.cpp \
-	$(MEDNAFEN_DIR)/MemoryStream.cpp \
-	$(MEDNAFEN_DIR)/Stream.cpp \
-	$(MEDNAFEN_DIR)/state.cpp \
-	$(MEDNAFEN_DIR)/endian.cpp \
-	$(CDROM_SOURCES) \
-	$(MEDNAFEN_DIR)/mempatcher.cpp \
-	$(MEDNAFEN_DIR)/video/Deinterlacer.cpp \
-	$(MEDNAFEN_DIR)/video/surface.cpp \
-	$(RESAMPLER_SOURCES) \
-	$(MEDNAFEN_DIR)/sound/Stereo_Buffer.cpp \
-	$(MEDNAFEN_DIR)/file.cpp \
-	$(OKIADPCM_SOURCES) \
-	$(MEDNAFEN_DIR)/md5.cpp
-
-
-LIBRETRO_SOURCES += libretro.cpp
-
-TRIO_SOURCES += $(MEDNAFEN_DIR)/trio/trio.c $(MEDNAFEN_DIR)/trio/triostr.c 
-
-SOURCES_C := 	$(TREMOR_SRC) $(LIBRETRO_SOURCES_C) $(TRIO_SOURCES) $(THREAD_SOURCES)
-
-SOURCES := $(LIBRETRO_SOURCES) $(CORE_SOURCES) $(MEDNAFEN_SOURCES) $(HW_CPU_SOURCES) $(HW_MISC_SOURCES) $(HW_SOUND_SOURCES) $(HW_VIDEO_SOURCES)
+include Makefile.common
 
 WARNINGS := -Wall \
 	-Wno-sign-compare \
@@ -320,7 +212,7 @@ else
 endif
 
 
-OBJECTS := $(SOURCES:.cpp=.o) $(SOURCES_C:.c=.o)
+OBJECTS := $(SOURCES_CXX:.cpp=.o) $(SOURCES_C:.c=.o)
 
 all: $(TARGET)
 
@@ -331,38 +223,9 @@ else
 endif
 
 LDFLAGS += $(fpic) $(SHARED)
-FLAGS += $(fpic) $(NEW_GCC_FLAGS)
-FLAGS += -I. -Imednafen -Imednafen/include -Imednafen/intl -Imednafen/hw_misc -Imednafen/hw_sound -Imednafen/hw_cpu $(CORE_INCDIR) $(EXTRA_CORE_INCDIR)
+FLAGS += $(fpic) $(NEW_GCC_FLAGS) $(INCFLAGS)
 
 FLAGS += $(ENDIANNESS_DEFINES) -DSIZEOF_DOUBLE=8 $(WARNINGS) -DMEDNAFEN_VERSION=\"0.9.31\" -DPACKAGE=\"mednafen\" -DMEDNAFEN_VERSION_NUMERIC=931 -DPSS_STYLE=1 -DMPC_FIXED_POINT $(CORE_DEFINE) -DSTDC_HEADERS -D__STDC_LIMIT_MACROS -D__LIBRETRO__ -D_LOW_ACCURACY_ $(EXTRA_INCLUDES) $(SOUND_DEFINE)
-
-ifeq ($(IS_X86), 1)
-FLAGS += -DARCH_X86
-endif
-
-ifeq ($(CACHE_CD), 1)
-FLAGS += -D__LIBRETRO_CACHE_CD__
-endif
-
-ifeq ($(NEED_BPP), 8)
-FLAGS += -DWANT_8BPP
-endif
-
-ifeq ($(NEED_BPP), 16)
-FLAGS += -DWANT_16BPP
-endif
-
-ifeq ($(FRONTEND_SUPPORTS_RGB565), 1)
-FLAGS += -DFRONTEND_SUPPORTS_RGB565
-endif
-
-ifeq ($(NEED_BPP), 32)
-FLAGS += -DWANT_32BPP
-endif
-
-ifeq ($(WANT_NEW_API), 1)
-FLAGS += -DWANT_NEW_API
-endif
 
 CXXFLAGS += $(FLAGS)
 CFLAGS += $(FLAGS)
