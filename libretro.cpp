@@ -3706,6 +3706,7 @@ static void update_input(void)
 {
    MDFNGI *currgame = (MDFNGI*)game;
    input_buf = 0;
+   size_t map_size = 10;
    static unsigned map[] = {
       RETRO_DEVICE_ID_JOYPAD_A, //A button
       RETRO_DEVICE_ID_JOYPAD_B, //B button
@@ -3719,7 +3720,7 @@ static void update_input(void)
       RETRO_DEVICE_ID_JOYPAD_L,
    };
 
-   for (unsigned i = 0; i < MAX_BUTTONS; i++)
+   for (unsigned i = 0; i < map_size; i++)
       input_buf |= map[i] != -1u &&
          input_state_cb(0, RETRO_DEVICE_JOYPAD, 0, map[i]) ? (1 << i) : 0;
 
