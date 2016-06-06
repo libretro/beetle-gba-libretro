@@ -19,7 +19,6 @@
 
 #include <string.h>
 #include <ctype.h>
-#include "include/trio/trio.h"
 #include <errno.h>
 #include <vector>
 
@@ -273,9 +272,9 @@ void MDFN_LoadGameCheats(void *override_ptr)
 
          char status_tmp, endian_tmp;
          if(type == 'C')
-            trio_sscanf(tbuf, "%c %c %d %c %d %08x %16llx %16llx %.2047[^\r\n]", &type, &status_tmp, &length, &endian_tmp, &icount, &addr, &val, &compare, namebuf);
+            sscanf(tbuf, "%c %c %d %c %d %08x %16llx %16llx %2047[^\r\n]", &type, &status_tmp, &length, &endian_tmp, &icount, &addr, &val, &compare, namebuf);
          else
-            trio_sscanf(tbuf, "%c %c %d %c %d %08x %16llx %.2047[^\r\n]", &type, &status_tmp, &length, &endian_tmp, &icount, &addr, &val, namebuf);
+            sscanf(tbuf, "%c %c %d %c %d %08x %16llx %2047[^\r\n]", &type, &status_tmp, &length, &endian_tmp, &icount, &addr, &val, namebuf);
 
          status = (status_tmp == 'A') ? 1 : 0;
          bigendian = (endian_tmp == 'B') ? 1 : 0;
@@ -413,7 +412,7 @@ static bool TestConditions(const char *string)
  bool passed = 1;
 
  //printf("TR: %s\n", string);
- while(trio_sscanf(string, "%u %c %.63s %.63s %.63s", &bytelen, &endian, address, operation, value) == 5 && passed)
+ while(sscanf(string, "%u %c %63s %63s %63s", &bytelen, &endian, address, operation, value) == 5 && passed)
  {
   uint32 v_address;
   uint64 v_value;
@@ -731,7 +730,7 @@ int MDFNI_DecodePAR(const char *str, uint32 *a, uint8 *v, uint8 *c, char *type)
  int boo[4];
  if(strlen(str)!=8) return(0);
 
- trio_sscanf(str,"%02x%02x%02x%02x",boo,boo+1,boo+2,boo+3);
+ sscanf(str,"%02x%02x%02x%02x",boo,boo+1,boo+2,boo+3);
 
  *c = 0;
 

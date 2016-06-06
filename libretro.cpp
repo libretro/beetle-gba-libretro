@@ -77,7 +77,6 @@ std::string retro_save_directory;
 
 #include <stdarg.h>
 #include <string.h>
-#include "mednafen/include/trio/trio.h"
 #include <errno.h>
 
 #include "mednafen/FileStream.h"
@@ -2487,7 +2486,7 @@ static bool CPUInit(const std::string bios_fn)
   while(fgets(linebuffer, 256, memfp))
   {
    char args[2][256];
-   int acount = trio_sscanf(linebuffer, "%.255s %.255s", args[0], args[1]);
+   int acount = sscanf(linebuffer, "%255s %255s", args[0], args[1]);
 
    if(acount < 1)
     continue;
