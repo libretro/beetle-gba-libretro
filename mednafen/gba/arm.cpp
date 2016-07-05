@@ -38,7 +38,6 @@ unsigned int RunARM(void)
       \
       N_FLAG = (reg[dest].I & 0x80000000) ? true : false;\
       Z_FLAG = (reg[dest].I) ? false : true;\
-      C_FLAG = C_OUT;
 
 #define OP_EOR \
       reg[dest].I = reg[(opcode>>16)&15].I ^ value;
@@ -48,7 +47,6 @@ unsigned int RunARM(void)
       \
       N_FLAG = (reg[dest].I & 0x80000000) ? true : false;\
       Z_FLAG = (reg[dest].I) ? false : true;\
-      C_FLAG = C_OUT;
 
 #define NEG(i) ((i) >> 31)
 #define POS(i) ((~(i)) >> 31)
@@ -180,25 +178,21 @@ unsigned int RunARM(void)
 #define LOGICAL_LSL_REG \
    {\
      uint32 v = reg[opcode & 0x0f].I;\
-     C_OUT = (v >> (32 - shift)) & 1 ? true : false;\
      value = v << shift;\
    }
 #define LOGICAL_LSR_REG \
    {\
      uint32 v = reg[opcode & 0x0f].I;\
-     C_OUT = (v >> (shift - 1)) & 1 ? true : false;\
      value = v >> shift;\
    }
 #define LOGICAL_ASR_REG \
    {\
      uint32 v = reg[opcode & 0x0f].I;\
-     C_OUT = ((int32)v >> (int)(shift - 1)) & 1 ? true : false;\
      value = (int32)v >> (int)shift;\
    }
 #define LOGICAL_ROR_REG \
    {\
      uint32 v = reg[opcode & 0x0f].I;\
-     C_OUT = (v >> (shift - 1)) & 1 ? true : false;\
      value = ((v << (32 - shift)) |\
               (v >> shift));\
    }
@@ -206,14 +200,12 @@ unsigned int RunARM(void)
    {\
      uint32 v = reg[opcode & 0x0f].I;\
      shift = (int)C_FLAG;\
-     C_OUT = (v  & 1) ? true : false;\
      value = ((v >> 1) |\
               (shift << 31));\
    }
 #define LOGICAL_ROR_IMM \
    {\
      uint32 v = opcode & 0xff;\
-     C_OUT = (v >> (shift - 1)) & 1 ? true : false;\
      value = ((v << (32 - shift)) |\
               (v >> shift));\
    }
@@ -273,13 +265,11 @@ unsigned int RunARM(void)
       uint32 res = reg[base].I & value;\
       N_FLAG = (res & 0x80000000) ? true : false;\
       Z_FLAG = (res) ? false : true;\
-      C_FLAG = C_OUT;
 
 #define OP_TEQ \
       uint32 res = reg[base].I ^ value;\
       N_FLAG = (res & 0x80000000) ? true : false;\
       Z_FLAG = (res) ? false : true;\
-      C_FLAG = C_OUT;
 
 #define OP_ORR \
     reg[dest].I = reg[base].I | value;
@@ -288,7 +278,6 @@ unsigned int RunARM(void)
     reg[dest].I = reg[base].I | value;\
     N_FLAG = (reg[dest].I & 0x80000000) ? true : false;\
     Z_FLAG = (reg[dest].I) ? false : true;\
-    C_FLAG = C_OUT;
 
 #define OP_MOV \
     reg[dest].I = value;
@@ -297,7 +286,6 @@ unsigned int RunARM(void)
     reg[dest].I = value;\
     N_FLAG = (reg[dest].I & 0x80000000) ? true : false;\
     Z_FLAG = (reg[dest].I) ? false : true;\
-    C_FLAG = C_OUT;
 
 #define OP_BIC \
     reg[dest].I = reg[base].I & (~value);
@@ -306,7 +294,6 @@ unsigned int RunARM(void)
     reg[dest].I = reg[base].I & (~value);\
     N_FLAG = (reg[dest].I & 0x80000000) ? true : false;\
     Z_FLAG = (reg[dest].I) ? false : true;\
-    C_FLAG = C_OUT;
 
 #define OP_MVN \
     reg[dest].I = ~value;
@@ -315,7 +302,6 @@ unsigned int RunARM(void)
     reg[dest].I = ~value; \
     N_FLAG = (reg[dest].I & 0x80000000) ? true : false;\
     Z_FLAG = (reg[dest].I) ? false : true;\
-    C_FLAG = C_OUT;
 
 #define CASE_16(BASE) \
   case BASE:\
@@ -361,7 +347,6 @@ unsigned int RunARM(void)
       int base = (opcode >> 16) & 0x0F;\
       int shift = (opcode >> 7) & 0x1F;\
       int dest = (opcode>>12) & 15;\
-      bool C_OUT = C_FLAG;\
       uint32 value;\
       \
       if ((dest == 15)||((opcode & 0x02000010)==0x10))\
@@ -405,7 +390,6 @@ unsigned int RunARM(void)
       int base = (opcode >> 16) & 0x0F;\
       int shift = (opcode >> 7) & 0x1F;\
       int dest = (opcode>>12) & 15;\
-      bool C_OUT = C_FLAG;\
       uint32 value;\
       if ((dest == 15)||((opcode & 0x02000010)==0x10))\
       {\
@@ -417,7 +401,6 @@ unsigned int RunARM(void)
         LOGICAL_LSR_REG\
       } else {\
         value = 0;\
-        C_OUT = (reg[opcode & 0x0F].I & 0x80000000) ? true : false;\
       }\
       \
       if(dest == 15) {\
@@ -450,7 +433,6 @@ unsigned int RunARM(void)
       int base = (opcode >> 16) & 0x0F;\
       int shift = (opcode >> 7) & 0x1F;\
       int dest = (opcode>>12) & 15;\
-      bool C_OUT = C_FLAG;\
       uint32 value;\
       if ((dest == 15)||((opcode & 0x02000010)==0x10))\
       {\
@@ -463,10 +445,8 @@ unsigned int RunARM(void)
       } else {\
         if(reg[opcode & 0x0F].I & 0x80000000){\
           value = 0xFFFFFFFF;\
-          C_OUT = true;\
         } else {\
           value = 0;\
-          C_OUT = false;\
         }                   \
       }\
       \
@@ -500,7 +480,6 @@ unsigned int RunARM(void)
       int base = (opcode >> 16) & 0x0F;\
       int shift = (opcode >> 7) & 0x1F;\
       int dest = (opcode>>12) & 15;\
-      bool C_OUT = C_FLAG;\
       uint32 value;\
       if ((dest == 15)||((opcode & 0x02000010)==0x10))\
       {\
@@ -542,7 +521,6 @@ unsigned int RunARM(void)
       int base = (opcode >> 16) & 0x0F;\
       int shift = reg[(opcode >> 8)&15].B.B0;\
       int dest = (opcode>>12) & 15;\
-      bool C_OUT = C_FLAG;\
       uint32 value;\
       if ((dest == 15)||((opcode & 0x02000010)==0x10))\
       {\
@@ -553,12 +531,10 @@ unsigned int RunARM(void)
       if(shift) {\
         if(shift == 32) {\
           value = 0;\
-          C_OUT = (reg[opcode & 0x0F].I & 1 ? true : false);\
         } else if(shift < 32) {\
            LOGICAL_LSL_REG\
         } else {\
           value = 0;\
-          C_OUT = false;\
         }\
       } else {\
         value = reg[opcode & 0x0F].I;\
@@ -592,7 +568,6 @@ unsigned int RunARM(void)
       int base = (opcode >> 16) & 0x0F;\
       int shift = reg[(opcode >> 8)&15].B.B0;\
       int dest = (opcode>>12) & 15;\
-      bool C_OUT = C_FLAG;\
       uint32 value;\
       if ((dest == 15)||((opcode & 0x02000010)==0x10))\
       {\
@@ -603,12 +578,10 @@ unsigned int RunARM(void)
       if(shift) {\
         if(shift == 32) {\
           value = 0;\
-          C_OUT = (reg[opcode & 0x0F].I & 0x80000000 ? true : false);\
         } else if(shift < 32) {\
             LOGICAL_LSR_REG\
         } else {\
           value = 0;\
-          C_OUT = false;\
         }\
       } else {\
         value = reg[opcode & 0x0F].I;\
@@ -642,7 +615,6 @@ unsigned int RunARM(void)
       int base = (opcode >> 16) & 0x0F;\
       int shift = reg[(opcode >> 8)&15].B.B0;\
       int dest = (opcode>>12) & 15;\
-      bool C_OUT = C_FLAG;\
       uint32 value;\
       if ((dest == 15)||((opcode & 0x02000010)==0x10))\
       {\
@@ -659,10 +631,8 @@ unsigned int RunARM(void)
       } else {\
         if(reg[opcode & 0x0F].I & 0x80000000){\
           value = 0xFFFFFFFF;\
-          C_OUT = true;\
         } else {\
           value = 0;\
-          C_OUT = false;\
         }\
       }\
       if(dest == 15) {\
@@ -694,7 +664,6 @@ unsigned int RunARM(void)
       int base = (opcode >> 16) & 0x0F;\
       int shift = reg[(opcode >> 8)&15].B.B0;\
       int dest = (opcode>>12) & 15;\
-      bool C_OUT = C_FLAG;\
       uint32 value;\
       if ((dest == 15)||((opcode & 0x02000010)==0x10))\
       {\
@@ -708,11 +677,9 @@ unsigned int RunARM(void)
           LOGICAL_ROR_REG\
         } else {\
           value = reg[opcode & 0x0F].I;\
-          C_OUT = (value & 0x80000000 ? true : false);\
         }\
       } else {\
         value = reg[opcode & 0x0F].I;\
-        C_OUT = (value & 0x80000000 ? true : false);\
       }\
       if(dest == 15) {\
         clockTicks+=2+codeTicksAccessSeq32(armNextPC)+codeTicksAccessSeq32(armNextPC);\
@@ -757,7 +724,6 @@ unsigned int RunARM(void)
       int shift = (opcode & 0xF00) >> 7;\
       int base = (opcode >> 16) & 0x0F;\
       int dest = (opcode >> 12) & 0x0F;\
-      bool C_OUT = C_FLAG;\
       uint32 value;\
       if ((dest == 15)||((opcode & 0x02000010)==0x10))\
       {\
@@ -801,7 +767,6 @@ unsigned int RunARM(void)
       /* OP Rd,Rb,Rm LSL # */ \
       int shift = (opcode >> 7) & 0x1F;\
       int dest = (opcode>>12) & 15;\
-      bool C_OUT = C_FLAG;\
       uint32 value;\
       if ((dest == 15)||((opcode & 0x02000010)==0x10))\
       {\
@@ -844,7 +809,6 @@ unsigned int RunARM(void)
        /* OP Rd,Rb,Rm LSR # */ \
       int shift = (opcode >> 7) & 0x1F;\
       int dest = (opcode>>12) & 15;\
-      bool C_OUT = C_FLAG;\
       uint32 value;\
       if ((dest == 15)||((opcode & 0x02000010)==0x10))\
       {\
@@ -856,7 +820,6 @@ unsigned int RunARM(void)
         LOGICAL_LSR_REG\
       } else {\
         value = 0;\
-        C_OUT = (reg[opcode & 0x0F].I & 0x80000000) ? true : false;\
       }\
       \
       if(dest == 15) {\
@@ -888,7 +851,6 @@ unsigned int RunARM(void)
        /* OP Rd,Rb,Rm ASR # */\
       int shift = (opcode >> 7) & 0x1F;\
       int dest = (opcode>>12) & 15;\
-      bool C_OUT = C_FLAG;\
       uint32 value;\
       if ((dest == 15)||((opcode & 0x02000010)==0x10))\
       {\
@@ -901,10 +863,8 @@ unsigned int RunARM(void)
       } else {\
         if(reg[opcode & 0x0F].I & 0x80000000){\
           value = 0xFFFFFFFF;\
-          C_OUT = true;\
         } else {\
           value = 0;\
-          C_OUT = false;\
         }                   \
       }\
       \
@@ -937,7 +897,6 @@ unsigned int RunARM(void)
        /* OP Rd,Rb,Rm ROR # */\
       int shift = (opcode >> 7) & 0x1F;\
       int dest = (opcode>>12) & 15;\
-      bool C_OUT = C_FLAG;\
       uint32 value;\
       if ((dest == 15)||((opcode & 0x02000010)==0x10))\
       {\
@@ -978,7 +937,6 @@ unsigned int RunARM(void)
        /* OP Rd,Rb,Rm LSL Rs */\
       int shift = reg[(opcode >> 8)&15].B.B0;\
       int dest = (opcode>>12) & 15;\
-      bool C_OUT = C_FLAG;\
       uint32 value;\
       if ((dest == 15)||((opcode & 0x02000010)==0x10))\
       {\
@@ -989,12 +947,10 @@ unsigned int RunARM(void)
       if(shift) {\
         if(shift == 32) {\
           value = 0;\
-          C_OUT = (reg[opcode & 0x0F].I & 1 ? true : false);\
         } else if(shift < 32) {\
            LOGICAL_LSL_REG\
         } else {\
           value = 0;\
-          C_OUT = false;\
         }\
       } else {\
         value = reg[opcode & 0x0F].I;\
@@ -1027,7 +983,6 @@ unsigned int RunARM(void)
        /* OP Rd,Rb,Rm LSR Rs */ \
       int shift = reg[(opcode >> 8)&15].B.B0;\
       int dest = (opcode>>12) & 15;\
-      bool C_OUT = C_FLAG;\
       uint32 value;\
       if ((dest == 15)||((opcode & 0x02000010)==0x10))\
       {\
@@ -1038,12 +993,10 @@ unsigned int RunARM(void)
       if(shift) {\
         if(shift == 32) {\
           value = 0;\
-          C_OUT = (reg[opcode & 0x0F].I & 0x80000000 ? true : false);\
         } else if(shift < 32) {\
             LOGICAL_LSR_REG\
         } else {\
           value = 0;\
-          C_OUT = false;\
         }\
       } else {\
         value = reg[opcode & 0x0F].I;\
@@ -1076,7 +1029,6 @@ unsigned int RunARM(void)
        /* OP Rd,Rb,Rm ASR Rs */ \
       int shift = reg[(opcode >> 8)&15].B.B0;\
       int dest = (opcode>>12) & 15;\
-      bool C_OUT = C_FLAG;\
       uint32 value;\
       if ((dest == 15)||((opcode & 0x02000010)==0x10))\
       {\
@@ -1093,10 +1045,8 @@ unsigned int RunARM(void)
       } else {\
         if(reg[opcode & 0x0F].I & 0x80000000){\
           value = 0xFFFFFFFF;\
-          C_OUT = true;\
         } else {\
           value = 0;\
-          C_OUT = false;\
         }\
       }\
       if(dest == 15) {\
@@ -1127,7 +1077,6 @@ unsigned int RunARM(void)
        /* OP Rd,Rb,Rm ROR Rs */\
       int shift = reg[(opcode >> 8)&15].B.B0;\
       int dest = (opcode>>12) & 15;\
-      bool C_OUT = C_FLAG;\
       uint32 value;\
       if ((dest == 15)||((opcode & 0x02000010)==0x10))\
       {\
@@ -1141,11 +1090,9 @@ unsigned int RunARM(void)
           LOGICAL_ROR_REG\
         } else {\
           value = reg[opcode & 0x0F].I;\
-          C_OUT = (value & 0x80000000 ? true : false);\
         }\
       } else {\
         value = reg[opcode & 0x0F].I;\
-        C_OUT = (value & 0x80000000 ? true : false);\
       }\
       if(dest == 15) {\
         clockTicks+=2+codeTicksAccessSeq32(armNextPC)+codeTicksAccessSeq32(armNextPC);\
@@ -1189,7 +1136,6 @@ unsigned int RunARM(void)
     {\
       int shift = (opcode & 0xF00) >> 7;\
       int dest = (opcode >> 12) & 0x0F;\
-      bool C_OUT = C_FLAG;\
       uint32 value;\
       if ((dest == 15)||((opcode & 0x02000010)==0x10))\
       {\
