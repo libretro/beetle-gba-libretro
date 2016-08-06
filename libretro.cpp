@@ -2875,7 +2875,6 @@ void CPUInterrupt()
 unsigned int soundTS = 0;
 static uint8 *padq;
 
-static void SetInput(int port, const char *type, void *ptr) MDFN_COLD;
 static void SetInput(int port, const char *type, void *ptr)
 {
  padq = (uint8*)ptr;
