@@ -26,9 +26,6 @@
 
 #include "Port.h"
 
-namespace MDFN_IEN_GBA
-{
-
 //#define SPRITE_DEBUG
 
 void mode0RenderLine();
@@ -79,7 +76,5 @@ extern int gfxBG3Y;
 extern int gfxBG3LastX;
 extern int gfxBG3LastY;
 extern int gfxLastVCOUNT;
-
-}
 
 #endif // VBA_GFX_H

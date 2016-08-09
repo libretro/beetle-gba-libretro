@@ -24,9 +24,6 @@
 #include "RTC.h"
 #include "sram.h"
 
-namespace MDFN_IEN_GBA
-{
-
 #ifdef INCED_FROM_ARM_CPP
 #define EXCLUDE_ARM_FROM_INLINE
 #else
@@ -308,8 +305,6 @@ static EXCLUDE_ARM_FROM_INLINE int codeTicksAccessSeq32(uint32 address) // ARM S
   {
     return memoryWaitSeq32[addr];
   }
-}
-
 }
 
 #endif //VBA_GBAinline_H

@@ -83,9 +83,6 @@ std::string retro_save_directory;
 
 #include "scrc32.h"
 
-namespace MDFN_IEN_GBA
-{
-
 static bool CPUInit(const std::string bios_fn) MDFN_COLD;
 static void CPUReset(void) MDFN_COLD;
 static void CPUUpdateRender(void);
@@ -287,8 +284,7 @@ static SFORMAT Joy_StateRegs[] =
  SFEND
 };
 
-static int StateAction(StateMem *sm, int load, int data_only) MDFN_COLD;
-static int StateAction(StateMem *sm, int load, int data_only)
+int StateAction(StateMem *sm, int load, int data_only)
 {
  int ret = 1;
 
@@ -609,7 +605,6 @@ static void CPUCleanUp(void)
  }
 }
 
-static void CloseGame(void) MDFN_COLD;
 static void CloseGame(void)
 {
    GBA_EEPROM_SaveFile(MDFN_MakeFName(MDFNMKF_SAV, 0, "eep").c_str());
@@ -3419,36 +3414,8 @@ static const FileExtensionSpecStruct KnownExtensions[] =
  { NULL, NULL }
 };
 
-}
-
-using namespace MDFN_IEN_GBA;
-
 MDFNGI EmulatedGBA =
 {
- "gba",
- "GameBoy Advance",
- KnownExtensions,
- MODPRIO_INTERNAL_HIGH,
- NULL,
- &InputInfo,
- Load,
- TestMagic,
- NULL,
- NULL,
- CloseGame,
- SetLayerEnableMask,
- "BG0\0BG1\0BG2\0BG3\0OBJ\0WIN 0\0WIN 1\0OBJ WIN\0",
- NULL,
- NULL,
- NULL,
- NULL,
- NULL,
- NULL,
- false,
- StateAction,
- Emulate,
- SetInput,
- DoSimpleCommand,
  GBASettings,
  MDFN_MASTERCLOCK_FIXED(16777216),
  (uint32)((double)4194304 / 70224 * 65536 * 256),
@@ -3578,7 +3545,7 @@ void retro_init(void)
 
 void retro_reset(void)
 {
-   game->DoSimpleCommand(MDFN_MSC_RESET);
+   DoSimpleCommand(MDFN_MSC_RESET);
 }
 
 bool retro_load_game_special(unsigned, const struct retro_game_info *, size_t)
@@ -3617,13 +3584,11 @@ static uint16_t input_buf;
 
 static void hookup_ports(bool force)
 {
-   MDFNGI *currgame = game;
-
    if (initial_ports_hookup && !force)
       return;
 
    // Possible endian bug ...
-   currgame->SetInput(0, "gamepad", &input_buf);
+   SetInput(0, "gamepad", &input_buf);
 
    initial_ports_hookup = true;
 }
@@ -3737,8 +3702,6 @@ static uint64_t video_frames, audio_frames;
 
 void retro_run()
 {
-   MDFNGI *curgame = game;
-
    input_poll_cb();
 
    update_input();
@@ -3772,7 +3735,7 @@ void retro_run()
       last_sound_rate = spec.SoundRate;
    }
 
-   curgame->Emulate(&spec);
+   Emulate(&spec);
 
 #ifdef NEED_DEINTERLACER
    if (spec.InterlaceOn)
@@ -3791,7 +3754,7 @@ void retro_run()
       PrevInterlaced = false;
 #endif
 
-   int16 *const SoundBuf = spec.SoundBuf + spec.SoundBufSizeALMS * curgame->soundchan;
+   int16 *const SoundBuf = spec.SoundBuf + spec.SoundBufSizeALMS * 2;
    int32 SoundBufSize = spec.SoundBufSize - spec.SoundBufSizeALMS;
    const int32 SoundBufMaxSize = spec.SoundBufMaxSize - spec.SoundBufSizeALMS;
 
@@ -3912,24 +3875,13 @@ static size_t serialize_size;
 
 size_t retro_serialize_size(void)
 {
-   MDFNGI *curgame = (MDFNGI*)game;
-   //if (serialize_size)
-   //   return serialize_size;
-
-   if (!curgame->StateAction)
-   {
-      if (log_cb)
-         log_cb(RETRO_LOG_WARN, "[mednafen]: Module %s doesn't support save states.\n", curgame->shortname);
-      return 0;
-   }
-
    StateMem st;
    memset(&st, 0, sizeof(st));
 
    if (!MDFNSS_SaveSM(&st, 0, 0, NULL, NULL, NULL))
    {
       if (log_cb)
-         log_cb(RETRO_LOG_WARN, "[mednafen]: Module %s doesn't support save states.\n", curgame->shortname);
+         log_cb(RETRO_LOG_WARN, "[mednafen]: Module gba doesn't support save states.\n");
       return 0;
    }
 
@@ -4042,4 +3994,230 @@ void MDFND_PrintError(const char* err)
 {
    if (log_cb)
       log_cb(RETRO_LOG_ERROR, "%s\n", err);
+}
+
+MDFNGI *MDFNGameInfo = NULL;
+
+#if defined(WANT_NES_EMU)
+extern MDFNGI EmulatedNES;
+#define MDFNGI_CORE &EmulatedNES
+#elif defined WANT_SNES_EMU
+extern MDFNGI EmulatedSNES;
+#define MDFNGI_CORE &EmulatedSNES
+extern MDFNGI EmulatedGB;
+#elif defined WANT_GB_EMU
+#define MDFNGI_CORE &EmulatedGB
+#elif defined WANT_GBA_EMU
+extern MDFNGI EmulatedGBA;
+#define MDFNGI_CORE &EmulatedGBA
+#elif defined WANT_PCE_EMU
+extern MDFNGI EmulatedPCE;
+#define MDFNGI_CORE &EmulatedPCE
+#elif defined WANT_LYNX_EMU
+extern MDFNGI EmulatedLynx;
+#define MDFNGI_CORE &EmulatedLynx
+#elif defined WANT_MD_EMU
+extern MDFNGI EmulatedMD;
+#define MDFNGI_CORE &EmulatedMD
+#elif defined WANT_PCFX_EMU
+extern MDFNGI EmulatedPCFX;
+#define MDFNGI_CORE &EmulatedPCFX
+#elif defined WANT_SMS_EMU
+extern MDFNGI EmulatedSMS;
+#define MDFNGI_CORE &EmulatedSMS
+#elif defined(WANT_SMS_EMU) && defined(WANT_GG_EMU)
+extern MDFNGI EmulatedGG;
+#define MDFNGI_CORE &EmulatedGG
+#endif
+
+
+/* forward declarations */
+extern void MDFND_DispMessage(unsigned char *str);
+
+void MDFN_DispMessage(const char *format, ...)
+{
+ va_list ap;
+ va_start(ap,format);
+ char *msg = new char[4096]; 
+
+ vsnprintf(msg, 4096, format,ap);
+ va_end(ap);
+
+ MDFND_DispMessage((UTF8*)msg);
+}
+
+void MDFN_ResetMessages(void)
+{
+ MDFND_DispMessage(NULL);
+}
+
+
+MDFNGI *MDFNI_LoadGame(const char *force_module, const char *name)
+{
+   MDFNFILE GameFile;
+	std::vector<FileExtensionSpecStruct> valid_iae;
+   MDFNGameInfo = MDFNGI_CORE;
+
+	MDFN_printf(_("Loading %s...\n"),name);
+
+	MDFN_indent(1);
+
+	// Construct a NULL-delimited list of known file extensions for MDFN_fopen()
+   const FileExtensionSpecStruct *curexts = KnownExtensions;
+
+   while(curexts->extension && curexts->description)
+   {
+      valid_iae.push_back(*curexts);
+      curexts++;
+   }
+
+	if(!GameFile.Open(name, &valid_iae[0], _("game")))
+   {
+      MDFNGameInfo = NULL;
+      return 0;
+   }
+
+	MDFN_printf(_("Using module: gba\n\n"));
+	MDFN_indent(1);
+
+	//
+	// Load per-game settings
+	//
+	// Maybe we should make a "pgcfg" subdir, and automatically load all files in it?
+	// End load per-game settings
+	//
+
+   if(Load(name, &GameFile) <= 0)
+   {
+      GameFile.Close();
+      MDFN_indent(-2);
+      MDFNGameInfo = NULL;
+      return(0);
+   }
+
+	MDFN_LoadGameCheats(NULL);
+	MDFNMP_InstallReadPatches();
+
+	MDFN_ResetMessages();	// Save state, status messages, etc.
+
+	MDFN_indent(-2);
+
+   return(MDFNGameInfo);
+}
+
+void MDFNI_CloseGame(void)
+{
+   if(!MDFNGameInfo)
+      return;
+
+   MDFN_FlushGameCheats(0);
+
+   CloseGame();
+
+   MDFNMP_Kill();
+
+   MDFNGameInfo = NULL;
+}
+
+bool MDFNI_InitializeModule(void)
+{
+ return(1);
+}
+
+int MDFNI_Initialize(const char *basedir)
+{
+	return(1);
+}
+
+static int curindent = 0;
+
+void MDFN_indent(int indent)
+{
+ curindent += indent;
+}
+
+static uint8 lastchar = 0;
+
+void MDFN_printf(const char *format, ...)
+{
+   char *format_temp;
+   char *temp;
+   unsigned int x, newlen;
+
+   va_list ap;
+   va_start(ap,format);
+
+
+   // First, determine how large our format_temp buffer needs to be.
+   uint8 lastchar_backup = lastchar; // Save lastchar!
+   for(newlen=x=0;x<strlen(format);x++)
+   {
+      if(lastchar == '\n' && format[x] != '\n')
+      {
+         int y;
+         for(y=0;y<curindent;y++)
+            newlen++;
+      }
+      newlen++;
+      lastchar = format[x];
+   }
+
+   format_temp = (char *)malloc(newlen + 1); // Length + NULL character, duh
+
+   // Now, construct our format_temp string
+   lastchar = lastchar_backup; // Restore lastchar
+   for(newlen=x=0;x<strlen(format);x++)
+   {
+      if(lastchar == '\n' && format[x] != '\n')
+      {
+         int y;
+         for(y=0;y<curindent;y++)
+            format_temp[newlen++] = ' ';
+      }
+      format_temp[newlen++] = format[x];
+      lastchar = format[x];
+   }
+
+   format_temp[newlen] = 0;
+
+   temp = new char[4096];
+   vsnprintf(temp, 4096, format_temp, ap);
+   free(format_temp);
+
+   MDFND_Message(temp);
+   free(temp);
+
+   va_end(ap);
+}
+
+void MDFN_PrintError(const char *format, ...)
+{
+ char *temp;
+
+ va_list ap;
+
+ va_start(ap, format);
+
+ temp = new char[4096];
+ vsnprintf(temp, 4096, format, ap);
+ MDFND_PrintError(temp);
+ free(temp);
+
+ va_end(ap);
+}
+
+void MDFN_DebugPrintReal(const char *file, const int line, const char *format, ...)
+{
+ char *temp;
+
+ va_list ap;
+
+ va_start(ap, format);
+
+ temp = new char[4096];
+ vsnprintf(temp, 4096, format, ap);
+ fprintf(stderr, "%s:%d  %s\n", file, line, temp);
+ free(temp);
+
+ va_end(ap);
 }

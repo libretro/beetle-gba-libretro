@@ -20,12 +20,7 @@
 #ifndef VBA_SRAM_H
 #define VBA_SRAM_H
 
-namespace MDFN_IEN_GBA
-{
-
 extern uint8 sramRead(uint32 address);
 extern void sramWrite(uint32 address, uint8 byte);
-
-}
 
 #endif // VBA_SRAM_H

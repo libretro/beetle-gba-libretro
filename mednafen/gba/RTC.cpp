@@ -23,9 +23,6 @@
 
 #include <time.h>
 
-namespace MDFN_IEN_GBA
-{
-
 RTC::RTC()
 {
  InitTime();
@@ -223,6 +220,4 @@ int RTC::StateAction(StateMem *sm, int load, int data_only)
  }
 
  return(ret);
-}
-
 }

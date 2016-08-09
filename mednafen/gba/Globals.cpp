@@ -18,9 +18,6 @@
 
 #include "GBA.h"
 
-namespace MDFN_IEN_GBA
-{
-
 reg_pair reg[45];
 memoryMap map[256];
 bool ioReadable[0x400];
@@ -106,5 +103,3 @@ uint16 P1       = 0xFFFF;
 uint16 IE       = 0x0000;
 uint16 IF       = 0x0000;
 uint16 IME      = 0x0000;
-
-}

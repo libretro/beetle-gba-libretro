@@ -21,9 +21,6 @@
 #include "Gfx.h"
 #include "gfx-draw.h"
 
-namespace MDFN_IEN_GBA
-{
-
 void mode0RenderLine()
 {
   uint16 *palette = (uint16 *)paletteRAM;
@@ -553,6 +550,4 @@ void mode0RenderLineAll()
     
     lineMix[x] = color;
   }
-}
-
 }

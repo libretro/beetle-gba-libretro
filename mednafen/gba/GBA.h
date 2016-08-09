@@ -22,9 +22,6 @@
 
 #include "../mednafen.h"
 
-namespace MDFN_IEN_GBA
-{
-
 typedef struct {
   uint8 *address;
   uint32 mask;
@@ -138,18 +135,12 @@ int32 MDFNGBA_GetTimerPeriod(int which);
 #define R13_FIQ  42
 #define R14_FIQ  43
 #define SPSR_FIQ 44
-}
 
 #include "Globals.h"
 #include "eeprom.h"
 #include "flash.h"
 #include "RTC.h"
 
-namespace MDFN_IEN_GBA
-{
-
 extern RTC *GBA_RTC;
-
-}
 
 #endif //VBA_GBA_H

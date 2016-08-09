@@ -23,9 +23,6 @@
 #include "GBAinline.h"
 #include "Globals.h"
 
-namespace MDFN_IEN_GBA
-{
-
 unsigned int RunARM(void)
 {
  unsigned int clockTicks;
@@ -7893,6 +7890,4 @@ if(cond_res) {
   clockTicks = codeTicksAccessSeq32(oldArmNextPC) + 1;
 
  return(clockTicks);
-}
-
 }

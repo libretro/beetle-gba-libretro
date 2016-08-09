@@ -22,9 +22,6 @@
 #include "RTC.h"
 #include "GBAinline.h"
 
-namespace MDFN_IEN_GBA
-{
-
 uint32 CPUReadMemory(uint32 address)
 {  
   uint32 value;
@@ -280,6 +277,4 @@ uint8 CPUReadByte(uint32 address)
     }
     break;
   }
-}
-
 }

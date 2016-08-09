@@ -21,9 +21,6 @@
 #include "Gfx.h"
 #include "gfx-draw.h"
 
-namespace MDFN_IEN_GBA
-{
-
 void mode2RenderLine()
 {
   uint16 *palette = (uint16 *)paletteRAM;
@@ -479,6 +476,4 @@ void mode2RenderLineAll()
   gfxBG2Changed = 0;
   gfxBG3Changed = 0;
   gfxLastVCOUNT = VCOUNT;      
-}
-
 }

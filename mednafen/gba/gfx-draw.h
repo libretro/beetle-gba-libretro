@@ -33,9 +33,6 @@ static INLINE void MDFN_FastU32MemsetM8(uint32_t *array, uint32_t value_32, unsi
    }
 }
 
-namespace MDFN_IEN_GBA
-{
-
 //#define SPRITE_DEBUG
 
 void gfxDrawTextScreen(uint16, uint16, uint16, uint32 *);
@@ -237,8 +234,6 @@ static INLINE void gfxAlphaBlend(uint32 *ta, uint32 *tb, int ca, int cb)
       tb++;
     }
   }
-}
-
 }
 
 #endif // VBA_GFX_DRAW_H

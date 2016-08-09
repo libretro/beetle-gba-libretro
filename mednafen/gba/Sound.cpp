@@ -28,9 +28,6 @@
 
 #include "../include/blip/Stereo_Buffer.h"
 
-namespace MDFN_IEN_GBA
-{
-
 typedef Blip_Synth<blip_good_quality, 0xFF * 2> Synth;
 
 static Synth synth;
@@ -445,6 +442,4 @@ bool MDFNGBA_SetSoundRate(uint32 rate)
 {
  gba_buf.set_sample_rate(rate?rate:44100, 60);
  return(TRUE);
-}
-
 }

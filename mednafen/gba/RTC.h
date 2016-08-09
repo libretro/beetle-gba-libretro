@@ -20,9 +20,6 @@
 #ifndef VBA_RTC_H
 #define VBA_RTC_H
 
-namespace MDFN_IEN_GBA
-{
-
 class RTC
 {
  public:
@@ -56,7 +53,5 @@ class RTC
  int64 curtime;        // GBA CPU cycles since the Epoch, in local time.
 
 };
-
-}
 
 #endif

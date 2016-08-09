@@ -21,9 +21,6 @@
 #include "flash.h"
 #include "sram.h"
 
-namespace MDFN_IEN_GBA
-{
-
 uint8 sramRead(uint32 address)
 {
   return flashSaveMemory[address & 0xFFFF];
@@ -32,6 +29,4 @@ uint8 sramRead(uint32 address)
 void sramWrite(uint32 address, uint8 byte)
 {
   flashSaveMemory[address & 0xFFFF] = byte;
-}
-
 }

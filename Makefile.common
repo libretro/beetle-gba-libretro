@@ -1,10 +1,11 @@
 SOURCES_CXX :=
 SOURCES_C   :=
 
+LIBRETRO_COMMON_DIR := $(CORE_DIR)/libretro-common
 MEDNAFEN_DIR := $(CORE_DIR)/mednafen
 CORE_EMU_DIR := $(MEDNAFEN_DIR)/gba
 
-INCFLAGS := -I$(CORE_DIR) -I$(CORE_EMU_DIR)/src/lib -I$(MEDNAFEN_DIR) -I$(MEDNAFEN_DIR)/include -I$(MEDNAFEN_DIR)/intl -I$(MEDNAFEN_DIR)/hw_sound -I$(MEDNAFEN_DIR)/hw_cpu -I$(MEDNAFEN_DIR)/hw_misc
+INCFLAGS := -I$(CORE_DIR) -I$(CORE_EMU_DIR)/src/lib -I$(MEDNAFEN_DIR) -I$(MEDNAFEN_DIR)/include -I$(MEDNAFEN_DIR)/intl -I$(MEDNAFEN_DIR)/hw_sound -I$(MEDNAFEN_DIR)/hw_cpu -I$(MEDNAFEN_DIR)/hw_misc -I$(LIBRETRO_COMMON_DIR)/include
 
 ifneq ($(HAVE_GRIFFIN),1)
 SOURCES_CXX += \
@@ -83,11 +84,9 @@ endif
 
 ifneq ($(HAVE_GRIFFIN), 1)
 SOURCES_CXX += \
-	$(MEDNAFEN_DIR)/mednafen.cpp \
 	$(MEDNAFEN_DIR)/FileStream.cpp \
 	$(MEDNAFEN_DIR)/Stream.cpp \
 	$(MEDNAFEN_DIR)/settings.cpp \
-	$(MEDNAFEN_DIR)/general.cpp \
 	$(MEDNAFEN_DIR)/state.cpp \
 	$(MEDNAFEN_DIR)/mempatcher.cpp \
 	$(MEDNAFEN_DIR)/md5.cpp \
