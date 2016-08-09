@@ -122,9 +122,6 @@
     <ClCompile Include="..\..\mednafen\FileWrapper.cpp">
       <Filter>Source Files\mednafen</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\mednafen\general.cpp">
-      <Filter>Source Files\mednafen</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\mednafen\math_ops.cpp">
       <Filter>Source Files\mednafen</Filter>
     </ClCompile>

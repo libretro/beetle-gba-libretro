@@ -50,7 +50,6 @@
     <ClCompile Include="..\..\..\mednafen\gba\Sound.cpp" />
     <ClCompile Include="..\..\..\mednafen\gba\sram.cpp" />
     <ClCompile Include="..\..\..\mednafen\gba\thumb.cpp" />
-    <ClCompile Include="..\..\..\mednafen\general.cpp" />
     <ClCompile Include="..\..\..\mednafen\hw_sound\gb_apu\Gb_Apu.cpp" />
     <ClCompile Include="..\..\..\mednafen\hw_sound\gb_apu\Gb_Apu_State.cpp" />
     <ClCompile Include="..\..\..\mednafen\hw_sound\gb_apu\Gb_Oscs.cpp" />
