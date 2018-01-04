@@ -35,6 +35,7 @@ unsigned int RunARM(void)
       \
       N_FLAG = (reg[dest].I & 0x80000000) ? true : false;\
       Z_FLAG = (reg[dest].I) ? false : true;\
+      C_FLAG = C_OUT;
 
 #define OP_EOR \
       reg[dest].I = reg[(opcode>>16)&15].I ^ value;
@@ -44,6 +45,7 @@ unsigned int RunARM(void)
       \
       N_FLAG = (reg[dest].I & 0x80000000) ? true : false;\
       Z_FLAG = (reg[dest].I) ? false : true;\
+      C_FLAG = C_OUT;
 
 #define NEG(i) ((i) >> 31)
 #define POS(i) ((~(i)) >> 31)
@@ -175,21 +177,25 @@ unsigned int RunARM(void)
 #define LOGICAL_LSL_REG \
    {\
      uint32 v = reg[opcode & 0x0f].I;\
+     C_OUT = (v >> (32 - shift)) & 1 ? true : false;\
      value = v << shift;\
    }
 #define LOGICAL_LSR_REG \
    {\
      uint32 v = reg[opcode & 0x0f].I;\
+     C_OUT = (v >> (shift - 1)) & 1 ? true : false;\
      value = v >> shift;\
    }
 #define LOGICAL_ASR_REG \
    {\
      uint32 v = reg[opcode & 0x0f].I;\
+     C_OUT = ((int32)v >> (int)(shift - 1)) & 1 ? true : false;\
      value = (int32)v >> (int)shift;\
    }
 #define LOGICAL_ROR_REG \
    {\
      uint32 v = reg[opcode & 0x0f].I;\
+     C_OUT = (v >> (shift - 1)) & 1 ? true : false;\
      value = ((v << (32 - shift)) |\
               (v >> shift));\
    }
@@ -197,12 +203,14 @@ unsigned int RunARM(void)
    {\
      uint32 v = reg[opcode & 0x0f].I;\
      shift = (int)C_FLAG;\
+     C_OUT = (v  & 1) ? true : false;\
      value = ((v >> 1) |\
               (shift << 31));\
    }
 #define LOGICAL_ROR_IMM \
    {\
      uint32 v = opcode & 0xff;\
+     C_OUT = (v >> (shift - 1)) & 1 ? true : false;\
      value = ((v << (32 - shift)) |\
               (v >> shift));\
    }
@@ -262,11 +270,13 @@ unsigned int RunARM(void)
       uint32 res = reg[base].I & value;\
       N_FLAG = (res & 0x80000000) ? true : false;\
       Z_FLAG = (res) ? false : true;\
+      C_FLAG = C_OUT;
 
 #define OP_TEQ \
       uint32 res = reg[base].I ^ value;\
       N_FLAG = (res & 0x80000000) ? true : false;\
       Z_FLAG = (res) ? false : true;\
+      C_FLAG = C_OUT;
 
 #define OP_ORR \
     reg[dest].I = reg[base].I | value;
@@ -275,6 +285,7 @@ unsigned int RunARM(void)
     reg[dest].I = reg[base].I | value;\
     N_FLAG = (reg[dest].I & 0x80000000) ? true : false;\
     Z_FLAG = (reg[dest].I) ? false : true;\
+    C_FLAG = C_OUT;
 
 #define OP_MOV \
     reg[dest].I = value;
@@ -283,6 +294,7 @@ unsigned int RunARM(void)
     reg[dest].I = value;\
     N_FLAG = (reg[dest].I & 0x80000000) ? true : false;\
     Z_FLAG = (reg[dest].I) ? false : true;\
+    C_FLAG = C_OUT;
 
 #define OP_BIC \
     reg[dest].I = reg[base].I & (~value);
@@ -291,6 +303,7 @@ unsigned int RunARM(void)
     reg[dest].I = reg[base].I & (~value);\
     N_FLAG = (reg[dest].I & 0x80000000) ? true : false;\
     Z_FLAG = (reg[dest].I) ? false : true;\
+    C_FLAG = C_OUT;
 
 #define OP_MVN \
     reg[dest].I = ~value;
@@ -299,6 +312,7 @@ unsigned int RunARM(void)
     reg[dest].I = ~value; \
     N_FLAG = (reg[dest].I & 0x80000000) ? true : false;\
     Z_FLAG = (reg[dest].I) ? false : true;\
+    C_FLAG = C_OUT;
 
 #define CASE_16(BASE) \
   case BASE:\
@@ -344,6 +358,7 @@ unsigned int RunARM(void)
       int base = (opcode >> 16) & 0x0F;\
       int shift = (opcode >> 7) & 0x1F;\
       int dest = (opcode>>12) & 15;\
+      bool C_OUT MDFN_NOWARN_UNUSED = C_FLAG;\
       uint32 value;\
       \
       if ((dest == 15)||((opcode & 0x02000010)==0x10))\
@@ -387,6 +402,7 @@ unsigned int RunARM(void)
       int base = (opcode >> 16) & 0x0F;\
       int shift = (opcode >> 7) & 0x1F;\
       int dest = (opcode>>12) & 15;\
+      bool C_OUT MDFN_NOWARN_UNUSED = C_FLAG;\
       uint32 value;\
       if ((dest == 15)||((opcode & 0x02000010)==0x10))\
       {\
@@ -398,6 +414,7 @@ unsigned int RunARM(void)
         LOGICAL_LSR_REG\
       } else {\
         value = 0;\
+        C_OUT = (reg[opcode & 0x0F].I & 0x80000000) ? true : false;\
       }\
       \
       if(dest == 15) {\
@@ -430,6 +447,7 @@ unsigned int RunARM(void)
       int base = (opcode >> 16) & 0x0F;\
       int shift = (opcode >> 7) & 0x1F;\
       int dest = (opcode>>12) & 15;\
+      bool C_OUT MDFN_NOWARN_UNUSED = C_FLAG;\
       uint32 value;\
       if ((dest == 15)||((opcode & 0x02000010)==0x10))\
       {\
@@ -442,8 +460,10 @@ unsigned int RunARM(void)
       } else {\
         if(reg[opcode & 0x0F].I & 0x80000000){\
           value = 0xFFFFFFFF;\
+          C_OUT = true;\
         } else {\
           value = 0;\
+          C_OUT = false;\
         }                   \
       }\
       \
@@ -477,6 +497,7 @@ unsigned int RunARM(void)
       int base = (opcode >> 16) & 0x0F;\
       int shift = (opcode >> 7) & 0x1F;\
       int dest = (opcode>>12) & 15;\
+      bool C_OUT MDFN_NOWARN_UNUSED = C_FLAG;\
       uint32 value;\
       if ((dest == 15)||((opcode & 0x02000010)==0x10))\
       {\
@@ -518,6 +539,7 @@ unsigned int RunARM(void)
       int base = (opcode >> 16) & 0x0F;\
       int shift = reg[(opcode >> 8)&15].B.B0;\
       int dest = (opcode>>12) & 15;\
+      bool C_OUT MDFN_NOWARN_UNUSED = C_FLAG;\
       uint32 value;\
       if ((dest == 15)||((opcode & 0x02000010)==0x10))\
       {\
@@ -528,10 +550,12 @@ unsigned int RunARM(void)
       if(shift) {\
         if(shift == 32) {\
           value = 0;\
+          C_OUT = (reg[opcode & 0x0F].I & 1 ? true : false);\
         } else if(shift < 32) {\
            LOGICAL_LSL_REG\
         } else {\
           value = 0;\
+          C_OUT = false;\
         }\
       } else {\
         value = reg[opcode & 0x0F].I;\
@@ -565,6 +589,7 @@ unsigned int RunARM(void)
       int base = (opcode >> 16) & 0x0F;\
       int shift = reg[(opcode >> 8)&15].B.B0;\
       int dest = (opcode>>12) & 15;\
+      bool C_OUT MDFN_NOWARN_UNUSED = C_FLAG;\
       uint32 value;\
       if ((dest == 15)||((opcode & 0x02000010)==0x10))\
       {\
@@ -575,10 +600,12 @@ unsigned int RunARM(void)
       if(shift) {\
         if(shift == 32) {\
           value = 0;\
+          C_OUT = (reg[opcode & 0x0F].I & 0x80000000 ? true : false);\
         } else if(shift < 32) {\
             LOGICAL_LSR_REG\
         } else {\
           value = 0;\
+          C_OUT = false;\
         }\
       } else {\
         value = reg[opcode & 0x0F].I;\
@@ -612,6 +639,7 @@ unsigned int RunARM(void)
       int base = (opcode >> 16) & 0x0F;\
       int shift = reg[(opcode >> 8)&15].B.B0;\
       int dest = (opcode>>12) & 15;\
+      bool C_OUT MDFN_NOWARN_UNUSED = C_FLAG;\
       uint32 value;\
       if ((dest == 15)||((opcode & 0x02000010)==0x10))\
       {\
@@ -628,8 +656,10 @@ unsigned int RunARM(void)
       } else {\
         if(reg[opcode & 0x0F].I & 0x80000000){\
           value = 0xFFFFFFFF;\
+          C_OUT = true;\
         } else {\
           value = 0;\
+          C_OUT = false;\
         }\
       }\
       if(dest == 15) {\
@@ -661,6 +691,7 @@ unsigned int RunARM(void)
       int base = (opcode >> 16) & 0x0F;\
       int shift = reg[(opcode >> 8)&15].B.B0;\
       int dest = (opcode>>12) & 15;\
+      bool C_OUT MDFN_NOWARN_UNUSED = C_FLAG;\
       uint32 value;\
       if ((dest == 15)||((opcode & 0x02000010)==0x10))\
       {\
@@ -674,9 +705,11 @@ unsigned int RunARM(void)
           LOGICAL_ROR_REG\
         } else {\
           value = reg[opcode & 0x0F].I;\
+          C_OUT = (value & 0x80000000 ? true : false);\
         }\
       } else {\
         value = reg[opcode & 0x0F].I;\
+        C_OUT = (value & 0x80000000 ? true : false);\
       }\
       if(dest == 15) {\
         clockTicks+=2+codeTicksAccessSeq32(armNextPC)+codeTicksAccessSeq32(armNextPC);\
@@ -721,6 +754,7 @@ unsigned int RunARM(void)
       int shift = (opcode & 0xF00) >> 7;\
       int base = (opcode >> 16) & 0x0F;\
       int dest = (opcode >> 12) & 0x0F;\
+      bool C_OUT MDFN_NOWARN_UNUSED = C_FLAG;\
       uint32 value;\
       if ((dest == 15)||((opcode & 0x02000010)==0x10))\
       {\
@@ -764,6 +798,7 @@ unsigned int RunARM(void)
       /* OP Rd,Rb,Rm LSL # */ \
       int shift = (opcode >> 7) & 0x1F;\
       int dest = (opcode>>12) & 15;\
+      bool C_OUT MDFN_NOWARN_UNUSED = C_FLAG;\
       uint32 value;\
       if ((dest == 15)||((opcode & 0x02000010)==0x10))\
       {\
@@ -806,6 +841,7 @@ unsigned int RunARM(void)
        /* OP Rd,Rb,Rm LSR # */ \
       int shift = (opcode >> 7) & 0x1F;\
       int dest = (opcode>>12) & 15;\
+      bool C_OUT MDFN_NOWARN_UNUSED = C_FLAG;\
       uint32 value;\
       if ((dest == 15)||((opcode & 0x02000010)==0x10))\
       {\
@@ -817,6 +853,7 @@ unsigned int RunARM(void)
         LOGICAL_LSR_REG\
       } else {\
         value = 0;\
+        C_OUT = (reg[opcode & 0x0F].I & 0x80000000) ? true : false;\
       }\
       \
       if(dest == 15) {\
@@ -848,6 +885,7 @@ unsigned int RunARM(void)
        /* OP Rd,Rb,Rm ASR # */\
       int shift = (opcode >> 7) & 0x1F;\
       int dest = (opcode>>12) & 15;\
+      bool C_OUT MDFN_NOWARN_UNUSED = C_FLAG;\
       uint32 value;\
       if ((dest == 15)||((opcode & 0x02000010)==0x10))\
       {\
@@ -860,8 +898,10 @@ unsigned int RunARM(void)
       } else {\
         if(reg[opcode & 0x0F].I & 0x80000000){\
           value = 0xFFFFFFFF;\
+          C_OUT = true;\
         } else {\
           value = 0;\
+          C_OUT = false;\
         }                   \
       }\
       \
@@ -894,6 +934,7 @@ unsigned int RunARM(void)
        /* OP Rd,Rb,Rm ROR # */\
       int shift = (opcode >> 7) & 0x1F;\
       int dest = (opcode>>12) & 15;\
+      bool C_OUT MDFN_NOWARN_UNUSED = C_FLAG;\
       uint32 value;\
       if ((dest == 15)||((opcode & 0x02000010)==0x10))\
       {\
@@ -934,6 +975,7 @@ unsigned int RunARM(void)
        /* OP Rd,Rb,Rm LSL Rs */\
       int shift = reg[(opcode >> 8)&15].B.B0;\
       int dest = (opcode>>12) & 15;\
+      bool C_OUT MDFN_NOWARN_UNUSED = C_FLAG;\
       uint32 value;\
       if ((dest == 15)||((opcode & 0x02000010)==0x10))\
       {\
@@ -944,10 +986,12 @@ unsigned int RunARM(void)
       if(shift) {\
         if(shift == 32) {\
           value = 0;\
+          C_OUT = (reg[opcode & 0x0F].I & 1 ? true : false);\
         } else if(shift < 32) {\
            LOGICAL_LSL_REG\
         } else {\
           value = 0;\
+          C_OUT = false;\
         }\
       } else {\
         value = reg[opcode & 0x0F].I;\
@@ -980,6 +1024,7 @@ unsigned int RunARM(void)
        /* OP Rd,Rb,Rm LSR Rs */ \
       int shift = reg[(opcode >> 8)&15].B.B0;\
       int dest = (opcode>>12) & 15;\
+      bool C_OUT MDFN_NOWARN_UNUSED = C_FLAG;\
       uint32 value;\
       if ((dest == 15)||((opcode & 0x02000010)==0x10))\
       {\
@@ -990,10 +1035,12 @@ unsigned int RunARM(void)
       if(shift) {\
         if(shift == 32) {\
           value = 0;\
+          C_OUT = (reg[opcode & 0x0F].I & 0x80000000 ? true : false);\
         } else if(shift < 32) {\
             LOGICAL_LSR_REG\
         } else {\
           value = 0;\
+          C_OUT = false;\
         }\
       } else {\
         value = reg[opcode & 0x0F].I;\
@@ -1026,6 +1073,7 @@ unsigned int RunARM(void)
        /* OP Rd,Rb,Rm ASR Rs */ \
       int shift = reg[(opcode >> 8)&15].B.B0;\
       int dest = (opcode>>12) & 15;\
+      bool C_OUT MDFN_NOWARN_UNUSED = C_FLAG;\
       uint32 value;\
       if ((dest == 15)||((opcode & 0x02000010)==0x10))\
       {\
@@ -1042,8 +1090,10 @@ unsigned int RunARM(void)
       } else {\
         if(reg[opcode & 0x0F].I & 0x80000000){\
           value = 0xFFFFFFFF;\
+          C_OUT = true;\
         } else {\
           value = 0;\
+          C_OUT = false;\
         }\
       }\
       if(dest == 15) {\
@@ -1074,6 +1124,7 @@ unsigned int RunARM(void)
        /* OP Rd,Rb,Rm ROR Rs */\
       int shift = reg[(opcode >> 8)&15].B.B0;\
       int dest = (opcode>>12) & 15;\
+      bool C_OUT MDFN_NOWARN_UNUSED = C_FLAG;\
       uint32 value;\
       if ((dest == 15)||((opcode & 0x02000010)==0x10))\
       {\
@@ -1087,9 +1138,11 @@ unsigned int RunARM(void)
           LOGICAL_ROR_REG\
         } else {\
           value = reg[opcode & 0x0F].I;\
+          C_OUT = (value & 0x80000000 ? true : false);\
         }\
       } else {\
         value = reg[opcode & 0x0F].I;\
+        C_OUT = (value & 0x80000000 ? true : false);\
       }\
       if(dest == 15) {\
         clockTicks+=2+codeTicksAccessSeq32(armNextPC)+codeTicksAccessSeq32(armNextPC);\
@@ -1133,6 +1186,7 @@ unsigned int RunARM(void)
     {\
       int shift = (opcode & 0xF00) >> 7;\
       int dest = (opcode >> 12) & 0x0F;\
+      bool C_OUT MDFN_NOWARN_UNUSED = C_FLAG;\
       uint32 value;\
       if ((dest == 15)||((opcode & 0x02000010)==0x10))\
       {\
@@ -1604,13 +1658,13 @@ unsigned int RunARM(void)
   if(cond == 0x0e) {
     cond_res = true;
   } else {
-    switch(cond) { 
-    case 0x00: // EQ 
+    switch(cond) {
+    case 0x00: // EQ
       cond_res = Z_FLAG;
       break;
     case 0x01: // NE
       cond_res = !Z_FLAG;
-      break; 
+      break;
     case 0x02: // CS
       cond_res = C_FLAG;
       break;
@@ -1643,12 +1697,12 @@ unsigned int RunARM(void)
       break;
     case 0x0C: // GT
       cond_res = !Z_FLAG &&(N_FLAG == V_FLAG);
-      break;    
+      break;
     case 0x0D: // LE
       cond_res = Z_FLAG || (N_FLAG != V_FLAG);
-      break; 
-    case 0x0E: 
-      cond_res = true; 
+      break;
+    case 0x0E:
+      cond_res = true;
       break;
     case 0x0F:
     default:
@@ -1657,7 +1711,7 @@ unsigned int RunARM(void)
       break;
     }
   }
-  
+
 if(cond_res) {
   switch(((opcode>>16)&0xFF0) | ((opcode>>4)&0x0F)) {
     LOGICAL_DATA_OPCODE_WITHOUT_base(OP_AND,  OP_AND, 0x000);
@@ -1667,7 +1721,7 @@ if(cond_res) {
       // MUL Rd, Rm, Rs
       int dest = (opcode >> 16) & 0x0F;
       int mult = (opcode & 0x0F);
-      clockTicks = 1; 
+      clockTicks = 1;
       uint32 rs = reg[(opcode >> 8) & 0x0F].I;
       reg[dest].I = reg[mult].I * rs;
       if(((int32)rs)<0)
@@ -2799,7 +2853,7 @@ if(cond_res) {
       clockTicks = 2;
       uint32 umult = reg[(opcode & 0x0F)].I;
       uint32 usource = reg[(opcode >> 8) & 0x0F].I;
-      int destLo = (opcode >> 12) & 0x0F;         
+      int destLo = (opcode >> 12) & 0x0F;
       int destHi = (opcode >> 16) & 0x0F;
       uint64 uTemp = ((uint64)umult)*((uint64)usource);
       reg[destLo].I = (uint32)uTemp;
@@ -2823,7 +2877,7 @@ if(cond_res) {
       clockTicks = 2;
       uint32 umult = reg[(opcode & 0x0F)].I;
       uint32 usource = reg[(opcode >> 8) & 0x0F].I;
-      int destLo = (opcode >> 12) & 0x0F;         
+      int destLo = (opcode >> 12) & 0x0F;
       int destHi = (opcode >> 16) & 0x0F;
       uint64 uTemp = ((uint64)umult)*((uint64)usource);
       reg[destLo].I = (uint32)uTemp;
@@ -2851,7 +2905,7 @@ if(cond_res) {
       clockTicks = 3;
       uint32 umult = reg[(opcode & 0x0F)].I;
       uint32 usource = reg[(opcode >> 8) & 0x0F].I;
-      int destLo = (opcode >> 12) & 0x0F;         
+      int destLo = (opcode >> 12) & 0x0F;
       int destHi = (opcode >> 16) & 0x0F;
       uint64 uTemp = (uint64)reg[destHi].I;
       uTemp <<= 32;
@@ -2878,7 +2932,7 @@ if(cond_res) {
       clockTicks = 3;
       uint32 umult = reg[(opcode & 0x0F)].I;
       uint32 usource = reg[(opcode >> 8) & 0x0F].I;
-      int destLo = (opcode >> 12) & 0x0F;         
+      int destLo = (opcode >> 12) & 0x0F;
       int destHi = (opcode >> 16) & 0x0F;
       uint64 uTemp = (uint64)reg[destHi].I;
       uTemp <<= 32;
@@ -2907,7 +2961,7 @@ if(cond_res) {
     {
       // SMULL RdLo, RdHi, Rm, Rs
       clockTicks = 2;
-      int destLo = (opcode >> 12) & 0x0F;         
+      int destLo = (opcode >> 12) & 0x0F;
       int destHi = (opcode >> 16) & 0x0F;
       uint32 rs = reg[(opcode >> 8) & 0x0F].I;
       int64 m = (int32)reg[(opcode & 0x0F)].I;
@@ -2934,7 +2988,7 @@ if(cond_res) {
     {
       // SMULLS RdLo, RdHi, Rm, Rs
       clockTicks = 2;
-      int destLo = (opcode >> 12) & 0x0F;         
+      int destLo = (opcode >> 12) & 0x0F;
       int destHi = (opcode >> 16) & 0x0F;
       uint32 rs = reg[(opcode >> 8) & 0x0F].I;
       int64 m = (int32)reg[(opcode & 0x0F)].I;
@@ -2965,7 +3019,7 @@ if(cond_res) {
     {
       // SMLAL RdLo, RdHi, Rm, Rs
       clockTicks = codeTicksAccesint32(armNextPC) + 4;
-      int destLo = (opcode >> 12) & 0x0F;         
+      int destLo = (opcode >> 12) & 0x0F;
       int destHi = (opcode >> 16) & 0x0F;
       uint32 rs = reg[(opcode >> 8) & 0x0F].I;
       int64 m = (int32)reg[(opcode & 0x0F)].I;
@@ -2994,7 +3048,7 @@ if(cond_res) {
     {
       // SMLALS RdLo, RdHi, Rm, Rs
       clockTicks = codeTicksAccesint32(armNextPC) + 4;
-      int destLo = (opcode >> 12) & 0x0F;         
+      int destLo = (opcode >> 12) & 0x0F;
       int destHi = (opcode >> 16) & 0x0F;
       uint32 rs = reg[(opcode >> 8) & 0x0F].I;
       int64 m = (int32)reg[(opcode & 0x0F)].I;
@@ -3224,7 +3278,7 @@ if(cond_res) {
     }
   break;
   CASE_16(0x400)
-  // T versions shouldn't be different on GBA      
+  // T versions shouldn't be different on GBA
   CASE_16(0x420)
     {
       // STR Rd, [Rn], -#
@@ -3504,7 +3558,7 @@ if(cond_res) {
     }
     break;
   CASE_16(0x440)
-    // T versions shouldn't be different on GBA      
+    // T versions shouldn't be different on GBA
   CASE_16(0x460)
     {
       // STRB Rd, [Rn], -#
@@ -4019,7 +4073,7 @@ if(cond_res) {
       int dest = (opcode >> 12) & 15;
       int base = (opcode >> 16) & 15;
       uint32 address = reg[base].I - offset;
-      reg[base].I = address;      
+      reg[base].I = address;
       CPUWriteMemory(address, reg[dest].I);
       clockTicks = 2 + dataTicksAccesint32(address) +
           codeTicksAccesint32(armNextPC);
@@ -4064,7 +4118,7 @@ if(cond_res) {
       int dest = (opcode >> 12) & 15;
       int base = (opcode >> 16) & 15;
       uint32 address = reg[base].I - value;
-      reg[base].I = address;      
+      reg[base].I = address;
       CPUWriteMemory(address, reg[dest].I);
       clockTicks = 2 + dataTicksAccesint32(address) +
           codeTicksAccesint32(armNextPC);
@@ -4171,7 +4225,7 @@ if(cond_res) {
       int dest = (opcode >> 12) & 15;
       int base = (opcode >> 16) & 15;
       uint32 address = reg[base].I + offset;
-      reg[base].I = address;      
+      reg[base].I = address;
       CPUWriteMemory(address, reg[dest].I);
       clockTicks = 2 + dataTicksAccesint32(address) +
           codeTicksAccesint32(armNextPC);
@@ -4216,7 +4270,7 @@ if(cond_res) {
       int dest = (opcode >> 12) & 15;
       int base = (opcode >> 16) & 15;
       uint32 address = reg[base].I + value;
-      reg[base].I = address;      
+      reg[base].I = address;
       CPUWriteMemory(address, reg[dest].I);
       clockTicks = 2 + dataTicksAccesint32(address) +
           codeTicksAccesint32(armNextPC);
@@ -4618,7 +4672,7 @@ if(cond_res) {
       uint32 address = reg[base].I - offset;
       reg[dest].I = CPUReadMemory(address);
       if(dest != base)
-        reg[base].I = address;      
+        reg[base].I = address;
       clockTicks = 0;
       if(dest == 15) {
         reg[15].I &= 0xFFFFFFFC;
@@ -4681,7 +4735,7 @@ if(cond_res) {
       uint32 address = reg[base].I - value;
       reg[dest].I = CPUReadMemory(address);
       if(dest != base)
-        reg[base].I = address;      
+        reg[base].I = address;
       clockTicks = 0;
       if(dest == 15) {
         reg[15].I &= 0xFFFFFFFC;
@@ -4838,7 +4892,7 @@ if(cond_res) {
       uint32 address = reg[base].I + offset;
       reg[dest].I = CPUReadMemory(address);
       if(dest != base)
-        reg[base].I = address;      
+        reg[base].I = address;
       clockTicks = 0;
       if(dest == 15) {
         reg[15].I &= 0xFFFFFFFC;
@@ -5195,7 +5249,7 @@ if(cond_res) {
       int dest = (opcode >> 12) & 15;
       int base = (opcode >> 16) & 15;
       uint32 address = reg[base].I - offset;
-      reg[base].I = address;      
+      reg[base].I = address;
       CPUWriteByte(address, reg[dest].B.B0);
       clockTicks = 2 + dataTicksAccesint16(address) +
           codeTicksAccesint32(armNextPC);
@@ -5240,7 +5294,7 @@ if(cond_res) {
       int dest = (opcode >> 12) & 15;
       int base = (opcode >> 16) & 15;
       uint32 address = reg[base].I - value;
-      reg[base].I = address;      
+      reg[base].I = address;
       CPUWriteByte(address, reg[dest].B.B0);
       clockTicks = 2 + dataTicksAccesint16(address) +
           codeTicksAccesint32(armNextPC);
@@ -5347,7 +5401,7 @@ if(cond_res) {
       int dest = (opcode >> 12) & 15;
       int base = (opcode >> 16) & 15;
       uint32 address = reg[base].I + offset;
-      reg[base].I = address;      
+      reg[base].I = address;
       CPUWriteByte(address, reg[dest].B.B0);
       clockTicks = 2 + dataTicksAccesint16(address) +
           codeTicksAccesint32(armNextPC);
@@ -5392,7 +5446,7 @@ if(cond_res) {
       int dest = (opcode >> 12) & 15;
       int base = (opcode >> 16) & 15;
       uint32 address = reg[base].I + value;
-      reg[base].I = address;      
+      reg[base].I = address;
       CPUWriteByte(address, reg[dest].B.B0);
       clockTicks = 2 + dataTicksAccesint16(address) +
           codeTicksAccesint32(armNextPC);
@@ -5794,7 +5848,7 @@ if(cond_res) {
       uint32 address = reg[base].I - offset;
       reg[dest].I = CPUReadByte(address);
       if(dest != base)
-        reg[base].I = address;      
+        reg[base].I = address;
       clockTicks = 0;
       if(dest == 15) {
         reg[15].I &= 0xFFFFFFFC;
@@ -5857,7 +5911,7 @@ if(cond_res) {
       uint32 address = reg[base].I - value;
       reg[dest].I = CPUReadByte(address);
       if(dest != base)
-        reg[base].I = address;      
+        reg[base].I = address;
       clockTicks = 0;
       if(dest == 15) {
         reg[15].I &= 0xFFFFFFFC;
@@ -6014,7 +6068,7 @@ if(cond_res) {
       uint32 address = reg[base].I + offset;
       reg[dest].I = CPUReadByte(address);
       if(dest != base)
-        reg[base].I = address;      
+        reg[base].I = address;
       clockTicks = 0;
       if(dest == 15) {
         reg[15].I &= 0xFFFFFFFC;
@@ -6077,7 +6131,7 @@ if(cond_res) {
       uint32 address = reg[base].I + value;
       reg[dest].I = CPUReadByte(address);
       if(dest != base)
-        reg[base].I = address;      
+        reg[base].I = address;
       clockTicks = 0;
       if(dest == 15) {
         reg[15].I &= 0xFFFFFFFC;
@@ -6113,14 +6167,14 @@ if(cond_res) {
     }\
     address += 4;\
   }
-    
+
   CASE_16(0x800)
     {
       // STMDA Rn, {Rlist}
       if (busPrefetchCount==0)
         busPrefetch = busPrefetchEnable;
       int base = (opcode & 0x000F0000) >> 16;
-      uint32 temp = reg[base].I - 
+      uint32 temp = reg[base].I -
         4 * (cpuBitsSet[opcode & 255] + cpuBitsSet[(opcode >> 8) & 255]);
       uint32 address = (temp + 4) & 0xFFFFFFFC;
       int offset = 0;
@@ -6155,7 +6209,7 @@ if(cond_res) {
       if (busPrefetchCount==0)
         busPrefetch = busPrefetchEnable;
       int base = (opcode & 0x000F0000) >> 16;
-      uint32 temp = reg[base].I - 
+      uint32 temp = reg[base].I -
         4 * (cpuBitsSet[opcode & 255] + cpuBitsSet[(opcode >> 8) & 255]);
       uint32 address = (temp+4) & 0xFFFFFFFC;
       int offset = 0;
@@ -6192,7 +6246,7 @@ if(cond_res) {
       if (busPrefetchCount==0)
         busPrefetch = busPrefetchEnable;
       int base = (opcode & 0x000F0000) >> 16;
-      uint32 temp = reg[base].I - 
+      uint32 temp = reg[base].I -
         4 * (cpuBitsSet[opcode & 255] + cpuBitsSet[(opcode >> 8) & 255]);
       uint32 address = (temp+4) & 0xFFFFFFFC;
       int offset = 0;
@@ -6244,7 +6298,7 @@ if(cond_res) {
       if (busPrefetchCount==0)
         busPrefetch = busPrefetchEnable;
       int base = (opcode & 0x000F0000) >> 16;
-      uint32 temp = reg[base].I - 
+      uint32 temp = reg[base].I -
         4 * (cpuBitsSet[opcode & 255] + cpuBitsSet[(opcode >> 8) & 255]);
       uint32 address = (temp+4) & 0xFFFFFFFC;
       int offset = 0;
@@ -6291,7 +6345,7 @@ if(cond_res) {
       clockTicks += 1 + codeTicksAccesint32(armNextPC);
     }
     break;
-  
+
   CASE_16(0x880)
     {
       // STMIA Rn, {Rlist}
@@ -6388,7 +6442,7 @@ if(cond_res) {
         STM_REG(512, 9);
         STM_REG(1024, 10);
         STM_REG(2048, 11);
-        STM_REG(4096, 12);      
+        STM_REG(4096, 12);
       }
       if(armMode != 0x10 && armMode != 0x1f) {
         STM_REG(8192, R13_USR);
@@ -6416,7 +6470,7 @@ if(cond_res) {
       uint32 address = reg[base].I & 0xFFFFFFFC;
       int offset = 0;
       uint32 temp = reg[base].I + 4*(cpuBitsSet[opcode & 0xFF] +
-                                  cpuBitsSet[(opcode >> 8) & 255]);    
+                                  cpuBitsSet[(opcode >> 8) & 255]);
       STMW_REG(1, 0);
       STMW_REG(2, 1);
       STMW_REG(4, 2);
@@ -6436,7 +6490,7 @@ if(cond_res) {
         STMW_REG(512, 9);
         STMW_REG(1024, 10);
         STMW_REG(2048, 11);
-        STMW_REG(4096, 12);      
+        STMW_REG(4096, 12);
       }
       if(armMode != 0x10 && armMode != 0x1f) {
         STMW_REG(8192, R13_USR);
@@ -6456,14 +6510,14 @@ if(cond_res) {
       clockTicks += 1 + codeTicksAccesint32(armNextPC);
     }
     break;
-    
+
   CASE_16(0x900)
     {
       // STMDB Rn, {Rlist}
       if (busPrefetchCount==0)
         busPrefetch = busPrefetchEnable;
       int base = (opcode & 0x000F0000) >> 16;
-      uint32 temp = reg[base].I - 
+      uint32 temp = reg[base].I -
         4 * (cpuBitsSet[opcode & 255] + cpuBitsSet[(opcode >> 8) & 255]);
       uint32 address = temp & 0xFFFFFFFC;
       int offset = 0;
@@ -6498,7 +6552,7 @@ if(cond_res) {
       if (busPrefetchCount==0)
         busPrefetch = busPrefetchEnable;
       int base = (opcode & 0x000F0000) >> 16;
-      uint32 temp = reg[base].I - 
+      uint32 temp = reg[base].I -
         4 * (cpuBitsSet[opcode & 255] + cpuBitsSet[(opcode >> 8) & 255]);
       uint32 address = temp & 0xFFFFFFFC;
       int offset = 0;
@@ -6535,7 +6589,7 @@ if(cond_res) {
       if (busPrefetchCount==0)
         busPrefetch = busPrefetchEnable;
       int base = (opcode & 0x000F0000) >> 16;
-      uint32 temp = reg[base].I - 
+      uint32 temp = reg[base].I -
         4 * (cpuBitsSet[opcode & 255] + cpuBitsSet[(opcode >> 8) & 255]);
       uint32 address = temp & 0xFFFFFFFC;
       int offset = 0;
@@ -6587,7 +6641,7 @@ if(cond_res) {
       if (busPrefetchCount==0)
         busPrefetch = busPrefetchEnable;
       int base = (opcode & 0x000F0000) >> 16;
-      uint32 temp = reg[base].I - 
+      uint32 temp = reg[base].I -
         4 * (cpuBitsSet[opcode & 255] + cpuBitsSet[(opcode >> 8) & 255]);
       uint32 address = temp & 0xFFFFFFFC;
       int offset = 0;
@@ -6731,7 +6785,7 @@ if(cond_res) {
         STM_REG(512, 9);
         STM_REG(1024, 10);
         STM_REG(2048, 11);
-        STM_REG(4096, 12);      
+        STM_REG(4096, 12);
       }
       if(armMode != 0x10 && armMode != 0x1f) {
         STM_REG(8192, R13_USR);
@@ -6759,7 +6813,7 @@ if(cond_res) {
       uint32 address = (reg[base].I+4) & 0xFFFFFFFC;
       int offset = 0;
       uint32 temp = reg[base].I + 4*(cpuBitsSet[opcode & 0xFF] +
-                                  cpuBitsSet[(opcode >> 8) & 255]);    
+                                  cpuBitsSet[(opcode >> 8) & 255]);
       STMW_REG(1, 0);
       STMW_REG(2, 1);
       STMW_REG(4, 2);
@@ -6779,7 +6833,7 @@ if(cond_res) {
         STMW_REG(512, 9);
         STMW_REG(1024, 10);
         STMW_REG(2048, 11);
-        STMW_REG(4096, 12);      
+        STMW_REG(4096, 12);
       }
       if(armMode != 0x10 && armMode != 0x1f) {
         STMW_REG(8192, R13_USR);
@@ -6799,7 +6853,7 @@ if(cond_res) {
       clockTicks += 1 + codeTicksAccesint32(armNextPC);
     }
     break;
-    
+
 #define LDM_REG(val,num) \
   if(opcode & (val)) {\
     reg[(num)].I = CPUReadMemory(address);\
@@ -6818,7 +6872,7 @@ if(cond_res) {
       if (busPrefetchCount==0)
         busPrefetch = busPrefetchEnable;
       int base = (opcode & 0x000F0000) >> 16;
-      uint32 temp = reg[base].I - 
+      uint32 temp = reg[base].I -
         4 * (cpuBitsSet[opcode & 255] + cpuBitsSet[(opcode >> 8) & 255]);
       uint32 address = (temp + 4) & 0xFFFFFFFC;
       clockTicks = 0;
@@ -6858,7 +6912,7 @@ if(cond_res) {
       if (busPrefetchCount==0)
         busPrefetch = busPrefetchEnable;
       int base = (opcode & 0x000F0000) >> 16;
-      uint32 temp = reg[base].I - 
+      uint32 temp = reg[base].I -
         4 * (cpuBitsSet[opcode & 255] + cpuBitsSet[(opcode >> 8) & 255]);
       uint32 address = (temp + 4) & 0xFFFFFFFC;
       clockTicks = 0;
@@ -6901,7 +6955,7 @@ if(cond_res) {
       if (busPrefetchCount==0)
         busPrefetch = busPrefetchEnable;
       int base = (opcode & 0x000F0000) >> 16;
-      uint32 temp = reg[base].I - 
+      uint32 temp = reg[base].I -
         4 * (cpuBitsSet[opcode & 255] + cpuBitsSet[(opcode >> 8) & 255]);
       uint32 address = (temp + 4) & 0xFFFFFFFC;
       clockTicks = 0;
@@ -6981,7 +7035,7 @@ if(cond_res) {
       if (busPrefetchCount==0)
         busPrefetch = busPrefetchEnable;
       int base = (opcode & 0x000F0000) >> 16;
-      uint32 temp = reg[base].I - 
+      uint32 temp = reg[base].I -
         4 * (cpuBitsSet[opcode & 255] + cpuBitsSet[(opcode >> 8) & 255]);
       uint32 address = (temp + 4) & 0xFFFFFFFC;
       clockTicks = 0;
@@ -7005,7 +7059,7 @@ if(cond_res) {
 
         reg[15].I = CPUReadMemory(address);
 
-        if(!(opcode & (1 << base)))    
+        if(!(opcode & (1 << base)))
           reg[base].I = temp;
 
         CPUSwitchMode(reg[17].I & 0x1f, false);
@@ -7050,7 +7104,7 @@ if(cond_res) {
           LDM_REG(16384, 14);
         }
 
-        if(!(opcode & (1 << base)))    
+        if(!(opcode & (1 << base)))
           reg[base].I = temp;
         if (!offset)
           clockTicks += 1 + dataTicksAccesint32(address);
@@ -7061,7 +7115,7 @@ if(cond_res) {
       clockTicks += 2 + codeTicksAccesint32(armNextPC);
     }
     break;
-    
+
   CASE_16(0x890)
     {
       // LDMIA Rn, {Rlist}
@@ -7107,7 +7161,7 @@ if(cond_res) {
       if (busPrefetchCount==0)
         busPrefetch = busPrefetchEnable;
       int base = (opcode & 0x000F0000) >> 16;
-      uint32 temp = reg[base].I + 
+      uint32 temp = reg[base].I +
         4 * (cpuBitsSet[opcode & 255] + cpuBitsSet[(opcode >> 8) & 255]);
       uint32 address = reg[base].I & 0xFFFFFFFC;
       clockTicks = 0;
@@ -7252,7 +7306,7 @@ if(cond_res) {
 
         reg[15].I = CPUReadMemory(address);
 
-        if(!(opcode & (1 << base)))    
+        if(!(opcode & (1 << base)))
           reg[base].I = temp;
 
         CPUSwitchMode(reg[17].I & 0x1f, false);
@@ -7297,7 +7351,7 @@ if(cond_res) {
           LDM_REG(16384, 14);
         }
 
-        if(!(opcode & (1 << base)))    
+        if(!(opcode & (1 << base)))
           reg[base].I = temp;
         if (!offset)
           clockTicks += 1 + dataTicksAccesint32(address);
@@ -7308,14 +7362,14 @@ if(cond_res) {
       clockTicks += 2 + codeTicksAccesint32(armNextPC);
     }
     break;
-    
+
   CASE_16(0x910)
     {
       // LDMDB Rn, {Rlist}
       if (busPrefetchCount==0)
         busPrefetch = busPrefetchEnable;
       int base = (opcode & 0x000F0000) >> 16;
-      uint32 temp = reg[base].I - 
+      uint32 temp = reg[base].I -
         4 * (cpuBitsSet[opcode & 255] + cpuBitsSet[(opcode >> 8) & 255]);
       uint32 address = temp & 0xFFFFFFFC;
       clockTicks = 0;
@@ -7356,7 +7410,7 @@ if(cond_res) {
       if (busPrefetchCount==0)
         busPrefetch = busPrefetchEnable;
       int base = (opcode & 0x000F0000) >> 16;
-      uint32 temp = reg[base].I - 
+      uint32 temp = reg[base].I -
         4 * (cpuBitsSet[opcode & 255] + cpuBitsSet[(opcode >> 8) & 255]);
       uint32 address = temp & 0xFFFFFFFC;
       clockTicks = 0;
@@ -7399,7 +7453,7 @@ if(cond_res) {
       if (busPrefetchCount==0)
         busPrefetch = busPrefetchEnable;
       int base = (opcode & 0x000F0000) >> 16;
-      uint32 temp = reg[base].I - 
+      uint32 temp = reg[base].I -
         4 * (cpuBitsSet[opcode & 255] + cpuBitsSet[(opcode >> 8) & 255]);
       uint32 address = temp & 0xFFFFFFFC;
       clockTicks = 0;
@@ -7479,7 +7533,7 @@ if(cond_res) {
       if (busPrefetchCount==0)
         busPrefetch = busPrefetchEnable;
       int base = (opcode & 0x000F0000) >> 16;
-      uint32 temp = reg[base].I - 
+      uint32 temp = reg[base].I -
         4 * (cpuBitsSet[opcode & 255] + cpuBitsSet[(opcode >> 8) & 255]);
       uint32 address = temp & 0xFFFFFFFC;
       clockTicks = 0;
@@ -7503,7 +7557,7 @@ if(cond_res) {
 
         reg[15].I = CPUReadMemory(address);
 
-        if(!(opcode & (1 << base)))    
+        if(!(opcode & (1 << base)))
           reg[base].I = temp;
 
         CPUSwitchMode(reg[17].I & 0x1f, false);
@@ -7548,7 +7602,7 @@ if(cond_res) {
           LDM_REG(16384, 14);
         }
 
-        if(!(opcode & (1 << base)))    
+        if(!(opcode & (1 << base)))
           reg[base].I = temp;
         if (!offset)
           clockTicks += 1 + dataTicksAccesint32(address);
@@ -7559,7 +7613,7 @@ if(cond_res) {
       clockTicks += 2 + codeTicksAccesint32(armNextPC);
     }
     break;
-    
+
   CASE_16(0x990)
     {
       // LDMIB Rn, {Rlist}
@@ -7605,7 +7659,7 @@ if(cond_res) {
       if (busPrefetchCount==0)
         busPrefetch = busPrefetchEnable;
       int base = (opcode & 0x000F0000) >> 16;
-      uint32 temp = reg[base].I + 
+      uint32 temp = reg[base].I +
         4 * (cpuBitsSet[opcode & 255] + cpuBitsSet[(opcode >> 8) & 255]);
       uint32 address = (reg[base].I+4) & 0xFFFFFFFC;
       clockTicks = 0;
@@ -7646,7 +7700,7 @@ if(cond_res) {
       if(!(opcode & (1 << base)))
         reg[base].I = temp;
     }
-    break;    
+    break;
   CASE_16(0x9d0)
     {
       // LDMIB Rn, {Rlist}^
@@ -7755,7 +7809,7 @@ if(cond_res) {
 
         reg[15].I = CPUReadMemory(address);
 
-        if(!(opcode & (1 << base)))    
+        if(!(opcode & (1 << base)))
           reg[base].I = temp;
 
         CPUSwitchMode(reg[17].I & 0x1f, false);
@@ -7800,7 +7854,7 @@ if(cond_res) {
           LDM_REG(16384, 14);
         }
 
-        if(!(opcode & (1 << base)))    
+        if(!(opcode & (1 << base)))
           reg[base].I = temp;
         if (!offset)
           clockTicks += 1 + dataTicksAccesint32(address);
@@ -7810,7 +7864,7 @@ if(cond_res) {
       }
       clockTicks += 2 + codeTicksAccesint32(armNextPC);
     }
-    break;    
+    break;
   CASE_256(0xa00)
     {
       // B <offset>
@@ -7854,7 +7908,7 @@ if(cond_res) {
     clockTicks += 2 + codeTicksAccesint32(armNextPC) +
         codeTicksAccessSeq32(armNextPC);
     busPrefetchCount=0;
-    CPUSoftwareInterrupt(opcode & 0x00FFFFFF);  
+    CPUSoftwareInterrupt(opcode & 0x00FFFFFF);
 
     break;
 #ifdef GP_SUPPORT
@@ -7877,7 +7931,7 @@ if(cond_res) {
   case 0xe0d:
   case 0xe0f:
     // MRC
-    break;    
+    break;
 #endif
   default:
     CPUUndefinedException();
