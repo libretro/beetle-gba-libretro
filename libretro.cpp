@@ -861,11 +861,11 @@ static int Load(const char *name, MDFNFILE *fp)
     GBA_EEPROM_LoadFile(MDFN_MakeFName(MDFNMKF_SAV, 0, "eep").c_str());
   }
 
-  if(!LoadCPalette(NULL, &CustomColorMap, 32768))
-  {
-   CPUCleanUp();
-   return(0);
-  }
+  //if(!LoadCPalette(NULL, &CustomColorMap, 32768))
+  //{
+  // CPUCleanUp();
+  // return(0);
+  //}
 
  return(1);
 }
@@ -3649,6 +3649,55 @@ bool retro_load_game(const struct retro_game_info *info)
    hookup_ports(true);
 
    check_variables();
+
+   struct retro_memory_descriptor descs[7];
+   struct retro_memory_map retromap;
+
+   memset(descs, 0, sizeof(descs));
+
+   descs[0].ptr    = internalRAM;    // Internal working RAM
+   descs[0].start  = 0x03000000;
+   descs[0].len    = 0x8000;
+   descs[0].select = 0xFF000000;
+
+   descs[1].ptr    = workRAM;        // Working RAM
+   descs[1].start  = 0x02000000;
+   descs[1].len    = 0x40000;
+   descs[1].select = 0xFF000000;
+
+   // TODO: if SRAM is flash, use start=0 addrspace="S" instead
+   descs[2].ptr    = flashSaveMemory;  // Save RAM
+   descs[2].start  = 0x0E000000;
+   descs[2].len    = flashSize;
+   descs[2].select = 0;
+
+   descs[3].ptr    = vram;           // VRAM
+   descs[3].start  = 0x06000000;
+   descs[3].len    = 0x20000;
+   descs[3].select = 0xFF000000;
+
+   descs[4].ptr    = paletteRAM;     // Palettes
+   descs[4].start  = 0x05000000;
+   descs[4].len    = 0x400;
+   descs[4].select = 0xFF000000;
+
+   descs[5].ptr    = oam;            // OAM
+   descs[5].start  = 0x07000000;
+   descs[5].len    = 0x400;
+   descs[5].select = 0xFF000000;
+
+   descs[6].ptr    = ioMem;          // I/O
+   descs[6].start  = 0x04000000;
+   descs[6].len    = 0x400;
+   descs[6].select = 0;
+
+   retromap.descriptors       = descs;
+   retromap.num_descriptors   = sizeof(descs) / sizeof(*descs);
+
+   environ_cb(RETRO_ENVIRONMENT_SET_MEMORY_MAPS, &retromap);
+
+   bool retroarchievement = true;
+   environ_cb(RETRO_ENVIRONMENT_SET_SUPPORT_ACHIEVEMENTS, &retroarchievement);
 
    return game;
 }
