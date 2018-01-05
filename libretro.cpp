@@ -3696,6 +3696,9 @@ bool retro_load_game(const struct retro_game_info *info)
 
    environ_cb(RETRO_ENVIRONMENT_SET_MEMORY_MAPS, &retromap);
 
+   bool retroarchievement = true;
+   environ_cb(RETRO_ENVIRONMENT_SET_SUPPORT_ACHIEVEMENTS, &retroarchievement);
+
    return game;
 }
 
