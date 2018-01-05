@@ -861,11 +861,11 @@ static int Load(const char *name, MDFNFILE *fp)
     GBA_EEPROM_LoadFile(MDFN_MakeFName(MDFNMKF_SAV, 0, "eep").c_str());
   }
 
-  if(!LoadCPalette(NULL, &CustomColorMap, 32768))
-  {
-   CPUCleanUp();
-   return(0);
-  }
+  //if(!LoadCPalette(NULL, &CustomColorMap, 32768))
+  //{
+  // CPUCleanUp();
+  // return(0);
+  //}
 
  return(1);
 }
