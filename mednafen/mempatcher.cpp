@@ -198,7 +198,7 @@ static bool SeekToOurSection(void *fp_ptr)
    FILE *fp = (FILE*)fp_ptr;
    char buf[2048];
 
-   while(fgets(buf,2048,fp) > 0)
+   while(fgets(buf,2048,fp) != NULL)
    {
       if(buf[0] == '[')
       {
@@ -249,7 +249,7 @@ void MDFN_LoadGameCheats(void *override_ptr)
 
    if(SeekToOurSection(fp))
    {
-      while(fgets(linebuf,2048,fp) > 0)
+      while(fgets(linebuf,2048,fp) != NULL)
       { 
          char namebuf[2048];
          char *tbuf=linebuf;
