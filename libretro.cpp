@@ -34,6 +34,10 @@ static void hookup_ports(bool force);
 
 static bool initial_ports_hookup = false;
 
+#define VARIABLE_SAVE_FILENAME_GAME 0
+#define VARIABLE_SAVE_FILENAME_CORE 1
+static int variable_save_filename = VARIABLE_SAVE_FILENAME_GAME;
+
 std::string retro_base_directory;
 std::string retro_base_name;
 std::string retro_save_directory;
@@ -3455,6 +3459,7 @@ static bool PrevInterlaced;
 static Deinterlacer deint;
 #endif
 
+#define MEDNAFEN_CORE_BASENAME "mednafen_gba_libretro"
 #define MEDNAFEN_CORE_NAME_MODULE "gba"
 #define MEDNAFEN_CORE_NAME "Mednafen VBA-M"
 #define MEDNAFEN_CORE_VERSION "v0.9.36"
@@ -3575,6 +3580,16 @@ static void check_variables(void)
          setting_gba_hle = 1;
       else if (strcmp(var.value, "disabled") == 0)
          setting_gba_hle = 0;
+   }
+
+   var.key = "save_filename";
+
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+   {
+      if (strcmp(var.value, "game") == 0)
+         variable_save_filename = VARIABLE_SAVE_FILENAME_GAME;
+      else if (strcmp(var.value, "core") == 0)
+         variable_save_filename = VARIABLE_SAVE_FILENAME_CORE;
    }
 }
 
@@ -3888,6 +3903,7 @@ void retro_set_environment(retro_environment_t cb)
 
    static const struct retro_variable vars[] = {
       { "gba_hle", "HLE bios emulation; enabled|disabled" },
+      { "save_filename", "Name to use for the save files; game|core" },
       { NULL, NULL },
    };
    cb(RETRO_ENVIRONMENT_SET_VARIABLES, (void*)vars);
@@ -4011,12 +4027,19 @@ std::string MDFN_MakeFName(MakeFName_Type type, int id1, const char *cd1)
    switch (type)
    {
       case MDFNMKF_SAV:
-         ret = retro_save_directory +slash + retro_base_name +
-            std::string(".") +
+         if (variable_save_filename == VARIABLE_SAVE_FILENAME_CORE)
+            ret = retro_save_directory + slash +
+               std::string(MEDNAFEN_CORE_BASENAME ".") +
+               std::string(cd1);
+         else
+         {
+            ret = retro_save_directory +slash + retro_base_name +
+               std::string(".") +
 #ifndef _XBOX
-	    md5_context::asciistr(MDFNGameInfo->MD5, 0) + std::string(".") +
+               md5_context::asciistr(MDFNGameInfo->MD5, 0) + std::string(".") +
 #endif
-            std::string(cd1);
+               std::string(cd1);
+         }
          break;
       case MDFNMKF_FIRMWARE:
          ret = retro_base_directory + slash + std::string(cd1);
