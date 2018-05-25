@@ -2543,22 +2543,19 @@ static bool CPUInit(const std::string bios_fn)
 
   MDFNFILE bios_fp;
 
-  if(!bios_fp.Open(MDFN_MakeFName(MDFNMKF_FIRMWARE, 0, bios_fn.c_str()), KnownBIOSExtensions, _("GBA BIOS")))
+  if(bios_fp.Open(MDFN_MakeFName(MDFNMKF_FIRMWARE, 0, bios_fn.c_str()), KnownBIOSExtensions, _("GBA BIOS")))
   {
-   return(0);
-  }
-  
-  if(GET_FSIZE(bios_fp) != 0x4000)
-  {
-   MDFN_PrintError(_("Invalid BIOS file size"));
+   if(GET_FSIZE(bios_fp) == 0x4000)
+   {
+    memcpy(bios, GET_FDATA(bios_fp), 0x4000);
+    useBios = true;
+   }
+   else
+    log_cb(RETRO_LOG_WARN, "Invalid BIOS file size");
    bios_fp.Close();
-   return(0);
   }
-
-  memcpy(bios, GET_FDATA(bios_fp), 0x4000);
-
-  bios_fp.Close();
-  useBios = true;
+  else
+   log_cb(RETRO_LOG_WARN, "Cannot find GBA bios file. Using high-level bios emulation.\n");
  }
 
  if(!useBios) 
