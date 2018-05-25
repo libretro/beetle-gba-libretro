@@ -275,8 +275,6 @@ void CPUUpdateRenderBuffers(bool force)
   }
 }
 
-extern SFORMAT eepromSaveData[];
-
 static uint16 padbufblah;
 static SFORMAT Joy_StateRegs[] =
 {
@@ -426,7 +424,7 @@ int StateAction(StateMem *sm, int load, int data_only)
  ret &= MDFNSS_StateAction(sm, load, data_only, RAMState, "RAM");
 
  if(cpuEEPROMEnabled)
-  ret &= MDFNSS_StateAction(sm, load, data_only, eepromSaveData, "EEPR");
+  ret &= EEPROM_StateAction(sm, load, data_only);
 
  ret &= GBA_Flash_StateAction(sm, load, data_only);
 
@@ -595,6 +593,8 @@ static void CPUCleanUp(void)
   free(systemColorMap);
   systemColorMap = NULL;
  }
+
+ MDFNGBASOUND_Kill();
 
  GBA_Flash_Kill();
 
@@ -1366,7 +1366,7 @@ void CPUSoftwareInterrupt(int comment)
   }
 }
 
-void CPUCompareVCOUNT()
+static void CPUCompareVCOUNT()
 {
   if(VCOUNT == (DISPSTAT >> 8)) {
     DISPSTAT |= 4;
@@ -2468,6 +2468,11 @@ static bool CPUInit(const std::string bios_fn)
 
  FlashSizeSet = FALSE;
 
+ cpuSramEnabled = true;
+ cpuFlashEnabled = true;
+ cpuEEPROMEnabled = true;
+ cpuEEPROMSensorEnabled = true;
+
  memfp = fopen(MDFN_MakeFName(MDFNMKF_SAV, 0, "type").c_str(), "rb");
  if(memfp)
  {
@@ -2521,13 +2526,6 @@ static bool CPUInit(const std::string bios_fn)
     GBA_RTC = new RTC();
   }
   fclose(memfp);
- }
- else
- {
-  cpuSramEnabled = true;
-  cpuFlashEnabled = true;
-  cpuEEPROMEnabled = true;
-  cpuEEPROMSensorEnabled = true;
  }
 
  useBios = false;
@@ -2650,6 +2648,10 @@ static void CPUReset(void)
   memset(vram, 0, 0x20000);
   // clean io memory
   memset(ioMem, 0, 0x400);
+
+  memset(internalRAM, 0, 0x8000);
+
+  memset(workRAM, 0x00, 0x40000);
 
   DISPCNT  = 0x0080;
   DISPSTAT = 0x0000;
@@ -2867,10 +2869,10 @@ void CPUInterrupt()
   biosProtected[3] = 0xe5;
 }
 
-unsigned int soundTS = 0;
+uint32 soundTS = 0;
 static uint8 *padq;
 
-static void SetInput(int port, const char *type, void *ptr)
+static void SetInput(unsigned port, const char *type, void *ptr)
 {
  padq = (uint8*)ptr;
 }
@@ -3331,7 +3333,6 @@ static void Emulate(EmulateSpecStruct *espec)
 
  espec->SoundBufSize = MDFNGBASOUND_Flush(espec->SoundBuf, espec->SoundBufMaxSize);
 }
-
 static void SetLayerEnableMask(uint64 mask)
 {
  layerSettings = mask << 8;

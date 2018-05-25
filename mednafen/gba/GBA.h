@@ -99,7 +99,6 @@ extern void CPUSwitchMode(int mode, bool saveState);
 extern void CPUUndefinedException();
 extern void CPUSoftwareInterrupt();
 extern void CPUSoftwareInterrupt(int comment);
-extern void CPUCompareVCOUNT();
 extern void CPUUpdateCPSR();
 extern void CPUUpdateFlags(bool breakLoop);
 extern void CPUUpdateFlags();

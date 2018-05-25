@@ -31,7 +31,7 @@ extern void flashWrite(uint32 address, uint8 byte);
 extern uint8 *flashSaveMemory;
 extern void flashSetSize(int size);
 
-extern int flashSize;
+extern uint32 flashSize;
 
 int GBA_Flash_StateAction(StateMem *sm, int load, int data_only);
 

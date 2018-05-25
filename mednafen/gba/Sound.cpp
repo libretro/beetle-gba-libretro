@@ -70,8 +70,6 @@ GBADigiSound DSChans[2]; // Digital sound channels, not Nintendo DS :b
 #define soundDSFifoB DSChans[1].Fifo
 #define soundDSBValue DSChans[1].Value
 
-#include "../state.h"
-
 int MDFNGBASOUND_StateAction(StateMem *sm, int load, int data_only)
 {
  gb_apu_state_t apu_state;
@@ -415,6 +413,13 @@ void MDFNGBASOUND_Init(void)
 
  gba_buf.bass_freq(20);
 }
+
+void MDFNGBASOUND_Kill(void)
+{
+ //gba_apu.set_output(NULL, NULL, NULL);
+ gba_buf.clear();
+}
+
 
 void soundReset()
 {

@@ -33,9 +33,9 @@
 #define FLASH_SETBANK            9
 
 uint8 *flashSaveMemory = NULL;
-int flashState = FLASH_READ_ARRAY;
-int flashReadState = FLASH_READ_ARRAY;
-int flashSize = 0x10000;
+static int flashState = FLASH_READ_ARRAY;
+static int flashReadState = FLASH_READ_ARRAY;
+uint32 flashSize = 0x10000;
 static int flashDeviceID = 0x1b;
 static int flashManufacturerID = 0x32;
 static int flashBank = 0;
@@ -53,6 +53,14 @@ int GBA_Flash_StateAction(StateMem *sm, int load, int data_only)
  };
 
  int ret = MDFNSS_StateAction(sm, load, data_only, flashSaveData, "FLSH");
+
+ if(load)
+ {
+  flashBank &= 1;
+
+  if(flashSize > 0x20000)
+   flashSize = 0x20000;
+ }
 
  return(ret);
 };
@@ -125,7 +133,6 @@ uint8 flashRead(uint32 address)
 
 void flashWrite(uint32 address, uint8 byte)
 {
-  
   //printf("Writing %02x at %08x\n", byte, address);
   //  log("Current state is %d\n", flashState);
   address &= 0xFFFF;
