@@ -28,17 +28,18 @@
 #define EEPROM_READDATA2      3
 #define EEPROM_WRITEDATA      4
 
+extern uint8_t libretro_save_buf[0x20000 + 0x2000];
+extern bool use_mednafen_save_method;
 extern int cpuDmaCount;
 
 static int eepromMode = EEPROM_IDLE;
 static int eepromByte = 0;
 static int eepromBits = 0;
 static int eepromAddress = 0;
-static uint8 eepromData[0x2000];
+static uint8 *eepromData = libretro_save_buf + 0x20000;
 static uint8 eepromBuffer[16];
 static bool eepromInUse = false;
 static int eepromSize = 512;
-
 #include "../state.h"
 
 int EEPROM_StateAction(StateMem *sm, int load, int data_only)
@@ -118,7 +119,7 @@ bool GBA_EEPROM_LoadFile(const char *filename)
 
 void eepromInit(void)
 {
-  memset(eepromData, 0xFF, sizeof(eepromData));
+  memset(eepromData, 0xFF, 0x2000);
   memset(eepromBuffer, 0, sizeof(eepromBuffer));
   eepromMode = EEPROM_IDLE;
   eepromByte = 0;

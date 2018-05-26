@@ -39,6 +39,11 @@ std::string retro_base_directory;
 std::string retro_base_name;
 std::string retro_save_directory;
 
+/* Workaround for broken-by-design GBA save semantics. */
+uint8_t libretro_save_buf[0x20000 + 0x2000];
+static unsigned libretro_save_size = sizeof(libretro_save_buf);
+bool use_mednafen_save_method = false;
+
 // VisualBoyAdvance - Nintendo Gameboy/GameboyAdvance (TM) emulator.
 // Copyright (C) 1999-2003 Forgotten
 // Copyright (C) 2005 Forgotten and the VBA development team
@@ -608,8 +613,11 @@ static void CPUCleanUp(void)
 
 static void CloseGame(void)
 {
+ if (use_mednafen_save_method)
+ {
    GBA_EEPROM_SaveFile(MDFN_MakeFName(MDFNMKF_SAV, 0, "eep").c_str());
    CPUWriteBatteryFile(MDFN_MakeFName(MDFNMKF_SAV, 0, "sav").c_str());
+ }
 
  // Call CPUCleanUp() to deallocate memory AFTER the backup memory is saved.
  CPUCleanUp();
@@ -831,6 +839,7 @@ static int Load(const uint8_t *data, size_t size)
   GBA_Flash_Init();
   eepromInit();
 
+  if (use_mednafen_save_method)
   {
    // EEPROM might be loaded from within CPUReadBatteryFile for support for Mednafen < 0.8.2, so call before GBA_EEPROM_LoadFile(), which
    // is more specific...kinda.
@@ -3442,6 +3451,55 @@ static Deinterlacer deint;
 
 const char *mednafen_core_str = MEDNAFEN_CORE_NAME;
 
+static bool scan_area(const uint8_t *data, unsigned size)
+{
+   for (unsigned i = 0; i < size; i++)
+      if (data[i] != 0xff)
+         return true;
+
+   return false;
+}
+
+static void adjust_save_ram()
+{
+   if (scan_area(libretro_save_buf, 512) &&
+         !scan_area(libretro_save_buf + 512, sizeof(libretro_save_buf) - 512))
+   {
+      libretro_save_size = 512;
+      if (log_cb)
+         log_cb(RETRO_LOG_INFO, "Detecting EEprom 8kbit\n");
+   }
+   else if (scan_area(libretro_save_buf, 0x2000) &&
+         !scan_area(libretro_save_buf + 0x2000, sizeof(libretro_save_buf) - 0x2000))
+   {
+      libretro_save_size = 0x2000;
+      if (log_cb)
+         log_cb(RETRO_LOG_INFO, "Detecting EEprom 64kbit\n");
+   }
+
+   else if (scan_area(libretro_save_buf, 0x10000) &&
+         !scan_area(libretro_save_buf + 0x10000, sizeof(libretro_save_buf) - 0x10000))
+   {
+      libretro_save_size = 0x10000;
+      if (log_cb)
+         log_cb(RETRO_LOG_INFO, "Detecting Flash 512kbit\n");
+   }
+   else if (scan_area(libretro_save_buf, 0x20000) &&
+         !scan_area(libretro_save_buf + 0x20000, sizeof(libretro_save_buf) - 0x20000))
+   {
+      libretro_save_size = 0x20000;
+      if (log_cb)
+         log_cb(RETRO_LOG_INFO, "Detecting Flash 1Mbit\n");
+   }
+   else if (log_cb)
+      log_cb(RETRO_LOG_INFO, "Did not detect any particular SRAM type.\n");
+
+   /*if (libretro_save_size == 512 || libretro_save_size == 0x2000)
+      eepromData = libretro_save_buf;
+   else if (libretro_save_size == 0x10000 || libretro_save_size == 0x20000)
+      flashSaveMemory = libretro_save_buf;*/
+}
+
 static void check_system_specs(void)
 {
    unsigned level = 0;
@@ -3450,6 +3508,7 @@ static void check_system_specs(void)
 
 void retro_init(void)
 {
+   memset(libretro_save_buf, 0xFF, sizeof(libretro_save_buf));
    struct retro_log_callback log;
    if (environ_cb(RETRO_ENVIRONMENT_GET_LOG_INTERFACE, &log))
       log_cb = log.log;
@@ -3533,18 +3592,28 @@ static void set_volume (uint32_t *ptr, unsigned number)
    }
 }
 
-static void check_variables(void)
+static void check_variables(bool startup)
 {
    struct retro_variable var = {0};
 
    var.key = "gba_hle";
 
-   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value && startup)
    {
       if (strcmp(var.value, "enabled") == 0)
          setting_gba_hle = 1;
       else if (strcmp(var.value, "disabled") == 0)
          setting_gba_hle = 0;
+   }
+
+   var.key = "gba_use_mednafen_save_method";
+
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value && startup)
+   {
+      if (strcmp(var.value, "mednafen") == 0)
+         use_mednafen_save_method = true;
+      else if (strcmp(var.value, "libretro") == 0)
+         use_mednafen_save_method = false;
    }
 }
 
@@ -3600,7 +3669,7 @@ bool retro_load_game(const struct retro_game_info *info)
 
    set_basename(info->path);
 
-   check_variables();
+   check_variables(true);
 
    MDFN_printf("Loading %s\n", info->path);
    game = MDFNI_LoadGame(MEDNAFEN_CORE_NAME_MODULE, (const uint8_t *)info->data, info->size);
@@ -3618,8 +3687,6 @@ bool retro_load_game(const struct retro_game_info *info)
 #endif
 
    hookup_ports(true);
-
-   check_variables();
 
    struct retro_memory_descriptor descs[7];
    struct retro_memory_map retromap;
@@ -3797,7 +3864,7 @@ void retro_run()
 
    bool updated = false;
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &updated) && updated)
-      check_variables();
+     check_variables(false);
 }
 
 void retro_get_system_info(struct retro_system_info *info)
@@ -3858,7 +3925,8 @@ void retro_set_environment(retro_environment_t cb)
    environ_cb = cb;
 
    static const struct retro_variable vars[] = {
-      { "gba_hle", "HLE bios emulation; enabled|disabled" },
+      { "gba_hle", "HLE bios emulation (Restart); enabled|disabled" },
+      { "gba_use_mednafen_save_method", "Save method (Restart); mednafen|libretro" },
       { NULL, NULL },
    };
    cb(RETRO_ENVIRONMENT_SET_VARIABLES, (void*)vars);
@@ -3943,13 +4011,20 @@ bool retro_unserialize(const void *data, size_t size)
    return MDFNSS_LoadSM(&st, 0, 0);
 }
 
-void *retro_get_memory_data(unsigned)
+void *retro_get_memory_data(unsigned type)
 {
+   if (type == RETRO_MEMORY_SAVE_RAM)
+      if (!use_mednafen_save_method)
+         return libretro_save_buf;
+
    return NULL;
 }
 
-size_t retro_get_memory_size(unsigned)
+size_t retro_get_memory_size(unsigned type)
 {
+   if (type == RETRO_MEMORY_SAVE_RAM)
+      if (!use_mednafen_save_method)
+         return libretro_save_size;
    return 0;
 }
 

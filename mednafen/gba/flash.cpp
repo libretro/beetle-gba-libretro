@@ -32,7 +32,9 @@
 #define FLASH_PROGRAM            8
 #define FLASH_SETBANK            9
 
-uint8 *flashSaveMemory = NULL;
+extern uint8_t libretro_save_buf[0x20000 + 0x2000];
+
+uint8 *flashSaveMemory = libretro_save_buf;
 static int flashState = FLASH_READ_ARRAY;
 static int flashReadState = FLASH_READ_ARRAY;
 uint32 flashSize = 0x10000;
@@ -67,20 +69,12 @@ int GBA_Flash_StateAction(StateMem *sm, int load, int data_only)
 
 bool GBA_Flash_Init(void)
 {
- if(!(flashSaveMemory = (uint8 *)malloc(0x20000)))
-  return(0);
-
- memset(flashSaveMemory, 0x00, 0x20000);
+ memset(flashSaveMemory, 0xFF, 0x20000);
  return(1);
 }
 
 void GBA_Flash_Kill(void)
 {
- if(flashSaveMemory)
- {
-  free(flashSaveMemory);
-  flashSaveMemory = NULL;
- }
 }
 
 void GBA_Flash_Reset(void)
