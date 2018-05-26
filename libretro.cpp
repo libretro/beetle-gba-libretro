@@ -4,7 +4,7 @@
 #include "mednafen/general.h"
 #include "mednafen/md5.h"
 #ifdef NEED_DEINTERLACER
-#include	"mednafen/video/Deinterlacer.h"
+#include "mednafen/video/Deinterlacer.h"
 #endif
 #include "libretro.h"
 
@@ -725,7 +725,7 @@ static bool TestMagic(const char *name, MDFNFILE *fp)
  {
   if((GET_FDATA_PTR(fp)[0xb2] == 0x96 && GET_FDATA_PTR(fp)[0xb3] == 0x00) || 
         (GET_FDATA_PTR(fp)[0] == 0x2E && GET_FDATA_PTR(fp)[3] == 0xEA))
-   return(TRUE);
+  return(TRUE);
  }
 
  return(FALSE);
@@ -1153,7 +1153,7 @@ void CPUSoftwareInterrupt()
 
 void CPUSoftwareInterrupt(int comment)
 {
-  static bool disableMessage = false;
+  static bool disableMessage = true;
   if(armState) comment >>= 16;
   if(comment == 0xfa) {
     return;
@@ -2358,12 +2358,12 @@ void CPUWriteByte(uint32 address, uint8 b)
      switch(address & 0x3FF) 
      {
       case 0x301:
-	if(b == 0x80)
-	  stopState = true;
-	holdState = 1;
-	holdType = -1;
-	cpuNextEvent = cpuTotalTicks;
-	break;
+        if(b == 0x80)
+         stopState = true;
+        holdState = 1;
+        holdType = -1;
+        cpuNextEvent = cpuTotalTicks;
+        break;
 
       case 0x60:
       case 0x61:
@@ -2405,17 +2405,17 @@ void CPUWriteByte(uint32 address, uint8 b)
       case 0x9d:
       case 0x9e:
       case 0x9f:      
-	soundEvent(address&0xFF, b);
-	break;
+        soundEvent(address&0xFF, b);
+        break;
       default:
-	if(address & 1)
-	  CPUUpdateRegister(address & 0x3fe,
-			    ((READ16LE(((uint16 *)&ioMem[address & 0x3fe])))
-			     & 0x00FF) |
-			    b<<8);
-	else
-	  CPUUpdateRegister(address & 0x3fe,
-			    ((READ16LE(((uint16 *)&ioMem[address & 0x3fe])) & 0xFF00) | b));
+        if(address & 1)
+         CPUUpdateRegister(address & 0x3fe,
+           ((READ16LE(((uint16 *)&ioMem[address & 0x3fe])))
+           & 0x00FF) |
+           b<<8);
+        else
+         CPUUpdateRegister(address & 0x3fe,
+           ((READ16LE(((uint16 *)&ioMem[address & 0x3fe])) & 0xFF00) | b));
       }
       break;
     } else goto unwritable;
@@ -2425,15 +2425,15 @@ void CPUWriteByte(uint32 address, uint8 b)
     *((uint16 *)&paletteRAM[address & 0x3FE]) = (b << 8) | b;
     break;
   case 6:
-     address = (address & 0x1fffe);
-     if (((DISPCNT & 7) >2) && ((address & 0x1C000) == 0x18000))
-      return;
-     if ((address & 0x18000) == 0x18000)
-      address &= 0x17fff;
+    address = (address & 0x1fffe);
+    if (((DISPCNT & 7) >2) && ((address & 0x1C000) == 0x18000))
+     return;
+    if ((address & 0x18000) == 0x18000)
+     address &= 0x17fff;
     // no need to switch 
     // byte writes to OBJ VRAM are ignored
     if ((address) < objTilesAddress[((DISPCNT&7)+1)>>2])
-	*((uint16 *)&vram[address]) = (b << 8) | b;
+     *((uint16 *)&vram[address]) = (b << 8) | b;
     break;
   case 7:
     // no need to switch
@@ -2452,9 +2452,9 @@ void CPUWriteByte(uint32 address, uint8 b)
     FLASH_SRAM_Write(address, b);
     break;
 
-    // default
+  // default
   default:
-  unwritable:
+    unwritable:
     break;
  }
 }
@@ -2551,7 +2551,7 @@ static bool CPUInit(const std::string bios_fn)
     useBios = true;
    }
    else
-    log_cb(RETRO_LOG_WARN, "Invalid BIOS file size");
+    log_cb(RETRO_LOG_WARN, "Invalid BIOS file size.\n");
    bios_fp.Close();
   }
   else
@@ -2900,9 +2900,9 @@ static void CPULoop(EmulateSpecStruct* espec, int ticks)
   for(;;) {
     if(!holdState && !SWITicks) {
       if(armState) {
-	clockTicks = RunARM();
+        clockTicks = RunARM();
       } else {
-	clockTicks = RunTHUMB();
+        clockTicks = RunTHUMB();
       }
     } else
       clockTicks = CPUUpdateTicks();
@@ -2923,17 +2923,16 @@ static void CPULoop(EmulateSpecStruct* espec, int ticks)
       cpuTotalTicks = 0;
       cpuDmaHack = false;
     
-    updateLoop:
+updateLoop:
 
       if (IRQTicks)
       {
-          IRQTicks -= clockTicks;
+        IRQTicks -= clockTicks;
         if (IRQTicks<0)
           IRQTicks = 0;
       }
       soundTS += clockTicks;
       lcdTicks -= clockTicks;
-
       
       if(lcdTicks <= 0) {
         if(DISPSTAT & 1) { // V-BLANK
@@ -2970,16 +2969,15 @@ static void CPULoop(EmulateSpecStruct* espec, int ticks)
 
             lcdTicks += 1008;
             DISPSTAT &= 0xFFFD;
-            if(VCOUNT == 160) 
-	    {
-	      //ticks = 0;
-		//puts("VBlank");
-                uint32 joy = padbufblah;
-                P1 = 0x03FF ^ (joy & 0x3FF);
-                //if(cpuEEPROMSensorEnabled)
+            if(VCOUNT == 160) {
+              //ticks = 0;
+              //puts("VBlank");
+              uint32 joy = padbufblah;
+              P1 = 0x03FF ^ (joy & 0x3FF);
+              //if(cpuEEPROMSensorEnabled)
                 //systemUpdateMotionSensor();
-                UPDATE_REG(0x130, P1);
-                uint16 P1CNT = READ16LE(((uint16 *)&ioMem[0x132]));
+              UPDATE_REG(0x130, P1);
+              uint16 P1CNT = READ16LE(((uint16 *)&ioMem[0x132]));
               // this seems wrong, but there are cases where the game
               // can enter the stop state without requesting an IRQ from
               // the joypad.
@@ -2998,7 +2996,6 @@ static void CPULoop(EmulateSpecStruct* espec, int ticks)
                 }
               }
               
-
               DISPSTAT |= 1;
               DISPSTAT &= 0xFFFD;
               UPDATE_REG(0x04, DISPSTAT);
@@ -3013,40 +3010,36 @@ static void CPULoop(EmulateSpecStruct* espec, int ticks)
             CPUCompareVCOUNT();
 
           } else {
-            if(!HelloSkipper)
-            {
-	      //printf("RL: %d\n", VCOUNT);
+            if(!HelloSkipper) {
+              //printf("RL: %d\n", VCOUNT);
               const uint32 *src = lineMix;
 
               (*renderLine)();
 
-	      if(surface->format.bpp == 32)
-	      {
-	       const uint32* cm = systemColorMap->v32;
-               uint32 *dest = surface->pixels + VCOUNT * surface->pitch32;
+              if(surface->format.bpp == 32) {
+                const uint32* cm = systemColorMap->v32;
+                uint32 *dest = surface->pixels + VCOUNT * surface->pitch32;
 
-               for(int x = 120; x; x--)
-               {
-                *dest = cm[*src & 0xFFFF];
-                dest++;
-                src++;
-                *dest = cm[*src & 0xFFFF];
-                dest++;
-                src++;
-               }
-	      }
-	      else
-	      {
-	       const uint16* cm = systemColorMap->v16;
-	       uint16* dest = surface->pixels16 + VCOUNT * surface->pitchinpix;
+                for(int x = 120; x; x--)
+                {
+                  *dest = cm[*src & 0xFFFF];
+                  dest++;
+                  src++;
+                  *dest = cm[*src & 0xFFFF];
+                  dest++;
+                  src++;
+                }
+              } else {
+                const uint16* cm = systemColorMap->v16;
+                uint16* dest = surface->pixels16 + VCOUNT * surface->pitchinpix;
 
-               for(int x = 0; x < 240; x += 2)
-               {
-                dest[x + 0] = cm[(uint16)src[x + 0]];
-                dest[x + 1] = cm[(uint16)src[x + 1]];
-               }
-	      }
-	      MDFN_MidLineUpdate(espec, VCOUNT);
+                for(int x = 0; x < 240; x += 2)
+                {
+                  dest[x + 0] = cm[(uint16)src[x + 0]];
+                  dest[x + 1] = cm[(uint16)src[x + 1]];
+                }
+              }
+              MDFN_MidLineUpdate(espec, VCOUNT);
             }
             // entering H-Blank
             DISPSTAT |= 2;
@@ -3057,10 +3050,9 @@ static void CPULoop(EmulateSpecStruct* espec, int ticks)
               IF |= 2;
               UPDATE_REG(0x202, IF);
             }
-	    if(VCOUNT == 159)
-            {
-             frameready = 1;
-             cpuBreakLoop = 1;
+            if(VCOUNT == 159) {
+              frameready = 1;
+              cpuBreakLoop = 1;
             }
           }
         }       
@@ -3510,7 +3502,7 @@ void retro_init(void)
    
    if (environ_cb(RETRO_ENVIRONMENT_GET_SAVE_DIRECTORY, &dir) && dir)
    {
-	  // If save directory is defined use it, otherwise use system directory
+      // If save directory is defined use it, otherwise use system directory
       retro_save_directory = *dir ? dir : retro_base_directory;
       // Make sure that we don't have any lingering slashes, etc, as they break Windows.
       size_t last = retro_save_directory.find_last_not_of("/\\");
@@ -3524,7 +3516,7 @@ void retro_init(void)
       /* TODO: Add proper fallback */
       if (log_cb)
          log_cb(RETRO_LOG_WARN, "Save directory is not defined. Fallback on using SYSTEM directory ...\n");
-	  retro_save_directory = retro_base_directory;
+      retro_save_directory = retro_base_directory;
    }      
 
 #if defined(WANT_16BPP) && defined(FRONTEND_SUPPORTS_RGB565)
@@ -3640,8 +3632,8 @@ bool retro_load_game(const struct retro_game_info *info)
    surf = new MDFN_Surface(NULL, FB_WIDTH, FB_HEIGHT, FB_WIDTH, pix_fmt);
 
 #ifdef NEED_DEINTERLACER
-	PrevInterlaced = false;
-	deint.ClearState();
+   PrevInterlaced = false;
+   deint.ClearState();
 #endif
 
    hookup_ports(true);
@@ -4012,14 +4004,14 @@ std::string MDFN_MakeFName(MakeFName_Type type, int id1, const char *cd1)
          ret = retro_save_directory +slash + retro_base_name +
             std::string(".") +
 #ifndef _XBOX
-	    md5_context::asciistr(MDFNGameInfo->MD5, 0) + std::string(".") +
+         md5_context::asciistr(MDFNGameInfo->MD5, 0) + std::string(".") +
 #endif
             std::string(cd1);
          break;
       case MDFNMKF_FIRMWARE:
          ret = retro_base_directory + slash + std::string(cd1);
 #ifdef _WIN32
-   sanitize_path(ret); // Because Windows path handling is mongoloid.
+         sanitize_path(ret); // Because Windows path handling is mongoloid.
 #endif
          break;
       default:	  
@@ -4116,14 +4108,14 @@ void MDFN_ResetMessages(void)
 MDFNGI *MDFNI_LoadGame(const char *force_module, const char *name)
 {
    MDFNFILE GameFile;
-	std::vector<FileExtensionSpecStruct> valid_iae;
+   std::vector<FileExtensionSpecStruct> valid_iae;
    MDFNGameInfo = MDFNGI_CORE;
 
-	MDFN_printf(_("Loading %s...\n"),name);
+   MDFN_printf(_("Loading %s...\n"),name);
 
-	MDFN_indent(1);
+   MDFN_indent(1);
 
-	// Construct a NULL-delimited list of known file extensions for MDFN_fopen()
+   // Construct a NULL-delimited list of known file extensions for MDFN_fopen()
    const FileExtensionSpecStruct *curexts = KnownExtensions;
 
    while(curexts->extension && curexts->description)
@@ -4132,21 +4124,21 @@ MDFNGI *MDFNI_LoadGame(const char *force_module, const char *name)
       curexts++;
    }
 
-	if(!GameFile.Open(name, &valid_iae[0], _("game")))
+   if(!GameFile.Open(name, &valid_iae[0], _("game")))
    {
       MDFNGameInfo = NULL;
       return 0;
    }
 
-	MDFN_printf(_("Using module: gba\n\n"));
-	MDFN_indent(1);
+   MDFN_printf(_("Using module: gba\n\n"));
+   MDFN_indent(1);
 
-	//
-	// Load per-game settings
-	//
-	// Maybe we should make a "pgcfg" subdir, and automatically load all files in it?
-	// End load per-game settings
-	//
+   //
+   // Load per-game settings
+   //
+   // Maybe we should make a "pgcfg" subdir, and automatically load all files in it?
+   // End load per-game settings
+   //
 
    if(Load(name, &GameFile) <= 0)
    {
@@ -4156,12 +4148,12 @@ MDFNGI *MDFNI_LoadGame(const char *force_module, const char *name)
       return(0);
    }
 
-	MDFN_LoadGameCheats(NULL);
-	MDFNMP_InstallReadPatches();
+   MDFN_LoadGameCheats(NULL);
+   MDFNMP_InstallReadPatches();
 
-	MDFN_ResetMessages();	// Save state, status messages, etc.
+   MDFN_ResetMessages();   // Save state, status messages, etc.
 
-	MDFN_indent(-2);
+   MDFN_indent(-2);
 
    return(MDFNGameInfo);
 }
@@ -4187,7 +4179,7 @@ bool MDFNI_InitializeModule(void)
 
 int MDFNI_Initialize(const char *basedir)
 {
-	return(1);
+   return(1);
 }
 
 static int curindent = 0;
