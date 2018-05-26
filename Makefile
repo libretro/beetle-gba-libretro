@@ -24,7 +24,7 @@ NEED_BLIP = 1
 NEED_STEREO_SOUND = 1
 NEED_CRC32 = 1
 WANT_NEW_API = 1
-CORE_DEFINE := -DWANT_GBA_EMU
+CORE_DEFINE :=
 
 prefix := /usr
 libdir := $(prefix)/lib

@@ -9,6 +9,7 @@
 #include "libretro.h"
 
 static MDFNGI *game;
+MDFNGI *MDFNGameInfo = NULL;
 
 struct retro_perf_callback perf_cb;
 retro_get_cpu_features_t perf_get_cpu_features_cb = NULL;
@@ -4049,41 +4050,6 @@ void MDFND_PrintError(const char* err)
       log_cb(RETRO_LOG_ERROR, "%s\n", err);
 }
 
-MDFNGI *MDFNGameInfo = NULL;
-
-#if defined(WANT_NES_EMU)
-extern MDFNGI EmulatedNES;
-#define MDFNGI_CORE &EmulatedNES
-#elif defined WANT_SNES_EMU
-extern MDFNGI EmulatedSNES;
-#define MDFNGI_CORE &EmulatedSNES
-extern MDFNGI EmulatedGB;
-#elif defined WANT_GB_EMU
-#define MDFNGI_CORE &EmulatedGB
-#elif defined WANT_GBA_EMU
-extern MDFNGI EmulatedGBA;
-#define MDFNGI_CORE &EmulatedGBA
-#elif defined WANT_PCE_EMU
-extern MDFNGI EmulatedPCE;
-#define MDFNGI_CORE &EmulatedPCE
-#elif defined WANT_LYNX_EMU
-extern MDFNGI EmulatedLynx;
-#define MDFNGI_CORE &EmulatedLynx
-#elif defined WANT_MD_EMU
-extern MDFNGI EmulatedMD;
-#define MDFNGI_CORE &EmulatedMD
-#elif defined WANT_PCFX_EMU
-extern MDFNGI EmulatedPCFX;
-#define MDFNGI_CORE &EmulatedPCFX
-#elif defined WANT_SMS_EMU
-extern MDFNGI EmulatedSMS;
-#define MDFNGI_CORE &EmulatedSMS
-#elif defined(WANT_SMS_EMU) && defined(WANT_GG_EMU)
-extern MDFNGI EmulatedGG;
-#define MDFNGI_CORE &EmulatedGG
-#endif
-
-
 /* forward declarations */
 extern void MDFND_DispMessage(unsigned char *str);
 
@@ -4109,7 +4075,7 @@ MDFNGI *MDFNI_LoadGame(const char *force_module, const char *name)
 {
    MDFNFILE GameFile;
    std::vector<FileExtensionSpecStruct> valid_iae;
-   MDFNGameInfo = MDFNGI_CORE;
+   MDFNGameInfo = &EmulatedGBA;
 
    MDFN_printf(_("Loading %s...\n"),name);
 
