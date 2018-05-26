@@ -1001,9 +1001,9 @@ void gfxDrawSprites(void)
               if(a1 & 0x1000)
                 xxx = sizeX - 1;
                   
-                if(a0 & 0x1000) {
+              if(a0 & 0x1000) {
                   t -= (t % mosaicY);
-                }
+              }
 
               int address = 0x10000 + ((((c + (t>>3) * inc)<<5)
                 + ((t & 7)<<2) + ((xxx>>3)<<5) + ((xxx & 7) >> 1))&0x7FFF);
