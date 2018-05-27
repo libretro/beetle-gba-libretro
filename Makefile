@@ -1,5 +1,6 @@
 DEBUG = 0
 FRONTEND_SUPPORTS_RGB565 = 1
+TILED_RENDERING = 1
 
 CORE_DIR := .
 
@@ -209,6 +210,10 @@ else
    SHARED := -shared -Wl,--no-undefined -Wl,--version-script=link.T
    LDFLAGS += -static-libgcc -static-libstdc++ -lwinmm
    FLAGS += -DHAVE__MKDIR
+endif
+
+ifeq ($(TILED_RENDERING), 1)
+FLAGS += -DTILED_RENDERING
 endif
 
 include Makefile.common
