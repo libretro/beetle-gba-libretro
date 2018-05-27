@@ -4,11 +4,12 @@
 #include "mednafen/general.h"
 #include "mednafen/md5.h"
 #ifdef NEED_DEINTERLACER
-#include	"mednafen/video/Deinterlacer.h"
+#include "mednafen/video/Deinterlacer.h"
 #endif
 #include "libretro.h"
 
 static MDFNGI *game;
+MDFNGI *MDFNGameInfo = NULL;
 
 struct retro_perf_callback perf_cb;
 retro_get_cpu_features_t perf_get_cpu_features_cb = NULL;
@@ -37,6 +38,11 @@ static bool initial_ports_hookup = false;
 std::string retro_base_directory;
 std::string retro_base_name;
 std::string retro_save_directory;
+
+/* Workaround for broken-by-design GBA save semantics. */
+uint8_t libretro_save_buf[0x20000 + 0x2000];
+static unsigned libretro_save_size = sizeof(libretro_save_buf);
+bool use_mednafen_save_method = false;
 
 // VisualBoyAdvance - Nintendo Gameboy/GameboyAdvance (TM) emulator.
 // Copyright (C) 1999-2003 Forgotten
@@ -139,7 +145,7 @@ void (*renderLine)() = mode0RenderLine;
 bool fxOn = false;
 bool windowOn = false;
 
-static const int TIMER_TICKS[4] = 
+static const int TIMER_TICKS[4] =
 {
   0,
   6,
@@ -155,7 +161,7 @@ const uint8 gamepakWaitState1[2] = { 4, 1 };
 const uint8 gamepakWaitState2[2] = { 8, 1 };
 const bool isInRom [16]=
   { false, false, false, false, false, false, false, false,
-    true, true, true, true, true, true, false, false };              
+    true, true, true, true, true, true, false, false };
 
 uint8 memoryWait[16] =
   { 0, 0, 2, 0, 0, 0, 0, 0, 4, 4, 4, 4, 4, 4, 4, 0 };
@@ -176,7 +182,7 @@ uint8 memoryWaitSeq32[16] =
 
 uint8 biosProtected[4];
 
-static const uint32 myROM[] = 
+static const uint32 myROM[] =
 {
  #include "mednafen/gba/myrom.h"
 };
@@ -193,7 +199,7 @@ static int romSize = 0x2000000;
 static INLINE int CPUUpdateTicks()
 {
   int cpuLoopTicks = lcdTicks;
-  
+
   if(timers[0].On && (timers[0].Ticks < cpuLoopTicks)) {
     cpuLoopTicks = timers[0].Ticks;
   }
@@ -274,8 +280,6 @@ void CPUUpdateRenderBuffers(bool force)
     CLEAR_ARRAY(line3);
   }
 }
-
-extern SFORMAT eepromSaveData[];
 
 static uint16 padbufblah;
 static SFORMAT Joy_StateRegs[] =
@@ -426,7 +430,7 @@ int StateAction(StateMem *sm, int load, int data_only)
  ret &= MDFNSS_StateAction(sm, load, data_only, RAMState, "RAM");
 
  if(cpuEEPROMEnabled)
-  ret &= MDFNSS_StateAction(sm, load, data_only, eepromSaveData, "EEPR");
+  ret &= EEPROM_StateAction(sm, load, data_only);
 
  ret &= GBA_Flash_StateAction(sm, load, data_only);
 
@@ -503,9 +507,9 @@ static bool CPUReadBatteryFile(const char *filename)
 
  gzseek(gp, 0, SEEK_SET);
 
- if(size == 0x20000) 
+ if(size == 0x20000)
  {
-  if(gzread(gp, flashSaveMemory, 0x20000) != 0x20000) 
+  if(gzread(gp, flashSaveMemory, 0x20000) != 0x20000)
   {
    gzclose(gp);
    return(FALSE);
@@ -515,10 +519,10 @@ static bool CPUReadBatteryFile(const char *filename)
    flashSetSize(0x20000);
    FlashSizeSet = TRUE;
   }
- } 
- else 
+ }
+ else
  {
-  if(gzread(gp, flashSaveMemory, 0x10000) != 0x10000) 
+  if(gzread(gp, flashSaveMemory, 0x10000) != 0x10000)
   {
    gzclose(gp);
    return(FALSE);
@@ -536,7 +540,7 @@ static bool CPUReadBatteryFile(const char *filename)
 static void CPUCleanUp(void) MDFN_COLD;
 static void CPUCleanUp(void)
 {
- if(rom) 
+ if(rom)
  {
   free(rom);
   rom = NULL;
@@ -553,20 +557,20 @@ static void CPUCleanUp(void)
   free(paletteRAM);
   paletteRAM = NULL;
  }
-  
- if(internalRAM) 
+
+ if(internalRAM)
  {
   free(internalRAM);
   internalRAM = NULL;
  }
 
- if(workRAM) 
+ if(workRAM)
  {
   free(workRAM);
   workRAM = NULL;
  }
 
- if(bios) 
+ if(bios)
  {
   free(bios);
   bios = NULL;
@@ -578,7 +582,7 @@ static void CPUCleanUp(void)
   pix = NULL;
  }
 
- if(oam) 
+ if(oam)
  {
   free(oam);
   oam = NULL;
@@ -589,12 +593,14 @@ static void CPUCleanUp(void)
   free(ioMem);
   ioMem = NULL;
  }
-  
+
  if(systemColorMap)
  {
   free(systemColorMap);
   systemColorMap = NULL;
  }
+
+ MDFNGBASOUND_Kill();
 
  GBA_Flash_Kill();
 
@@ -607,8 +613,11 @@ static void CPUCleanUp(void)
 
 static void CloseGame(void)
 {
+ if (use_mednafen_save_method)
+ {
    GBA_EEPROM_SaveFile(MDFN_MakeFName(MDFNMKF_SAV, 0, "eep").c_str());
    CPUWriteBatteryFile(MDFN_MakeFName(MDFNMKF_SAV, 0, "sav").c_str());
+ }
 
  // Call CPUCleanUp() to deallocate memory AFTER the backup memory is saved.
  CPUCleanUp();
@@ -712,27 +721,7 @@ static void RedoColorMap(const MDFN_PixelFormat &format)
  #endif
 }
 
-static bool TestMagic(const char *name, MDFNFILE *fp) MDFN_COLD;
-static bool TestMagic(const char *name, MDFNFILE *fp)
-{
- if(!memcmp(GET_FDATA_PTR(fp), "PSF\x22", 4))
-  return(TRUE);
-
- if(!strcasecmp(GET_FEXTS_PTR(fp), "gba") || !strcasecmp(GET_FEXTS_PTR(fp), "agb"))
-  return(TRUE);
-
- if(GET_FSIZE_PTR(fp) >= 192 && !strcasecmp(GET_FEXTS_PTR(fp), "bin"))
- {
-  if((GET_FDATA_PTR(fp)[0xb2] == 0x96 && GET_FDATA_PTR(fp)[0xb3] == 0x00) || 
-        (GET_FDATA_PTR(fp)[0] == 0x2E && GET_FDATA_PTR(fp)[3] == 0xEA))
-   return(TRUE);
- }
-
- return(FALSE);
-}
-
-static int Load(const char *name, MDFNFILE *fp) MDFN_COLD;
-static int Load(const char *name, MDFNFILE *fp)
+static int Load(const uint8_t *data, size_t size)
 {
   layerSettings = 0xFF00;
 
@@ -749,7 +738,6 @@ static int Load(const char *name, MDFNFILE *fp)
 
 
   {
-   uint32 size = GET_FSIZE_PTR(fp);
    uint8 *whereToLoad;
 
    if(cpuIsMultiBoot)
@@ -765,21 +753,21 @@ static int Load(const char *name, MDFNFILE *fp)
      size = 0x2000000;
    }
 
-   memcpy(whereToLoad, GET_FDATA_PTR(fp), size);
+   memcpy(whereToLoad, data, size);
 
    md5_context md5;
    md5.starts();
-   md5.update(GET_FDATA_PTR(fp), size);
+   md5.update(data, size);
    md5.finish(MDFNGameInfo->MD5);
 
    MDFN_printf(_("ROM:       %dKiB\n"), (size + 1023) / 1024);
-   MDFN_printf(_("ROM CRC32: 0x%08x\n"), (unsigned int)crc32(0, GET_FDATA_PTR(fp), size));
+   MDFN_printf(_("ROM CRC32: 0x%08x\n"), (unsigned int)crc32(0, data, size));
    MDFN_printf(_("ROM MD5:   0x%s\n"), md5_context::asciistr(MDFNGameInfo->MD5, 0).c_str());
 
    uint16 *temp = (uint16 *)(rom+((size+1)&~1));
    int i;
 
-   for(i = (size+1)&~1; i < 0x2000000; i+=2) 
+   for(i = (size+1)&~1; i < 0x2000000; i+=2)
    {
     WRITE16LE(temp, (i >> 1) & 0xFFFF);
     temp++;
@@ -851,6 +839,7 @@ static int Load(const char *name, MDFNFILE *fp)
   GBA_Flash_Init();
   eepromInit();
 
+  if (use_mednafen_save_method)
   {
    // EEPROM might be loaded from within CPUReadBatteryFile for support for Mednafen < 0.8.2, so call before GBA_EEPROM_LoadFile(), which
    // is more specific...kinda.
@@ -896,7 +885,7 @@ static void CPUUpdateRender(void)
       renderLine = mode0RenderLine;
     else if(fxOn && !windowOn && !(layerEnable & 0x8000))
       renderLine = mode0RenderLineNoWindow;
-    else 
+    else
       renderLine = mode0RenderLineAll;
     break;
   case 1:
@@ -970,7 +959,7 @@ void CPUUpdateCPSR()
 void CPUUpdateFlags(bool breakLoop)
 {
   uint32 CPSR = reg[16].I;
-  
+
   N_FLAG = (CPSR & 0x80000000) ? true: false;
   Z_FLAG = (CPSR & 0x40000000) ? true: false;
   C_FLAG = (CPSR & 0x20000000) ? true: false;
@@ -1008,7 +997,7 @@ void CPUSwitchMode(int mode, bool saveState, bool breakLoop)
 {
   //  if(armMode == mode)
   //    return;
-  
+
   CPUUpdateCPSR();
 
   switch(armMode) {
@@ -1052,7 +1041,7 @@ void CPUSwitchMode(int mode, bool saveState, bool breakLoop)
 
   uint32 CPSR = reg[16].I;
   uint32 SPSR = reg[17].I;
-  
+
   switch(mode) {
   case 0x10:
   case 0x1F:
@@ -1099,7 +1088,7 @@ void CPUSwitchMode(int mode, bool saveState, bool breakLoop)
       reg[17].I = CPSR;
     else
       reg[17].I = reg[SPSR_ABT].I;
-    break;    
+    break;
   case 0x1b:
     reg[13].I = reg[R13_UND].I;
     reg[14].I = reg[R14_UND].I;
@@ -1108,7 +1097,7 @@ void CPUSwitchMode(int mode, bool saveState, bool breakLoop)
       reg[17].I = CPSR;
     else
       reg[17].I = reg[SPSR_UND].I;
-    break;    
+    break;
   default:
     //systemMessage(MSG_UNSUPPORTED_ARM_MODE, N_("Unsupported ARM mode %02x"), mode);
     break;
@@ -1134,7 +1123,7 @@ void CPUUndefinedException()
   armIrqEnable = false;
   armNextPC = 0x04;
   ARM_PREFETCH;
-  reg[15].I += 4;  
+  reg[15].I += 4;
 }
 
 void CPUSoftwareInterrupt()
@@ -1153,7 +1142,7 @@ void CPUSoftwareInterrupt()
 
 void CPUSoftwareInterrupt(int comment)
 {
-  static bool disableMessage = false;
+  static bool disableMessage = true;
   if(armState) comment >>= 16;
   if(comment == 0xfa) {
     return;
@@ -1166,7 +1155,7 @@ void CPUSoftwareInterrupt(int comment)
   //  else {
   //    biosProtected = 0xe3a02004;
   //  }
-     
+
   switch(comment) {
   case 0x00:
     BIOS_SoftReset();
@@ -1188,7 +1177,7 @@ void CPUSoftwareInterrupt(int comment)
     break;
   case 0x04:
     CPUSoftwareInterrupt();
-    break;    
+    break;
   case 0x05:
     CPUSoftwareInterrupt();
     break;
@@ -1215,14 +1204,14 @@ void CPUSoftwareInterrupt(int comment)
       {
         if ((reg[2].I >> 24) & 1)
         {
-          if ((reg[2].I >> 26) & 1) 
+          if ((reg[2].I >> 26) & 1)
           SWITicks = (7 + memoryWait32[(reg[1].I>>24) & 0xF]) * (len>>1);
           else
           SWITicks = (8 + memoryWait[(reg[1].I>>24) & 0xF]) * (len);
         }
         else
         {
-          if ((reg[2].I >> 26) & 1) 
+          if ((reg[2].I >> 26) & 1)
           SWITicks = (10 + memoryWait32[(reg[0].I>>24) & 0xF] +
               memoryWait32[(reg[1].I>>24) & 0xF]) * (len>>1);
           else
@@ -1244,7 +1233,7 @@ void CPUSoftwareInterrupt(int comment)
               7 * (memoryWaitSeq32[(reg[1].I>>24) & 0xF] + 1)) * len;
         else
           SWITicks = (9 + memoryWait32[(reg[0].I>>24) & 0xF] +
-              memoryWait32[(reg[1].I>>24) & 0xF] + 
+              memoryWait32[(reg[1].I>>24) & 0xF] +
               7 * (memoryWaitSeq32[(reg[0].I>>24) & 0xF] +
               memoryWaitSeq32[(reg[1].I>>24) & 0xF] + 2)) * len;
       }
@@ -1366,7 +1355,7 @@ void CPUSoftwareInterrupt(int comment)
   }
 }
 
-void CPUCompareVCOUNT()
+static void CPUCompareVCOUNT()
 {
   if(VCOUNT == (DISPSTAT >> 8)) {
     DISPSTAT |= 4;
@@ -1486,7 +1475,7 @@ void CPUCheckDMA(int reason, int dmamask)
       case 2:
         destIncrement = 0;
         break;
-      }      
+      }
       doDMA(dmaSource[0], dmaDest[0], sourceIncrement, destIncrement,
             DMCNT_L[0] ? DMCNT_L[0] : 0x4000,
             DMCNT_H[0] & 0x0400);
@@ -1497,18 +1486,18 @@ void CPUCheckDMA(int reason, int dmamask)
         UPDATE_REG(0x202, IF);
         cpuNextEvent = cpuTotalTicks;
       }
-      
+
       if(((DMCNT_H[0] >> 5) & 3) == 3) {
         dmaDest[0] = DMDAD_L[0] | (DMDAD_H[0] << 16);
       }
-      
+
       if(!(DMCNT_H[0] & 0x0200) || (reason == 0)) {
         DMCNT_H[0] &= 0x7FFF;
         UPDATE_REG(0xBA, DMCNT_H[0]);
       }
     }
   }
-  
+
   // DMA 1
   if((DMCNT_H[1] & 0x8000) && (dmamask & 2)) {
     if(((DMCNT_H[1] >> 12) & 3) == reason) {
@@ -1533,7 +1522,7 @@ void CPUCheckDMA(int reason, int dmamask)
       case 2:
         destIncrement = 0;
         break;
-      }      
+      }
       if(reason == 3) {
         doDMA(dmaSource[1], dmaDest[1], sourceIncrement, 0, 4,
               0x0400);
@@ -1549,18 +1538,18 @@ void CPUCheckDMA(int reason, int dmamask)
         UPDATE_REG(0x202, IF);
         cpuNextEvent = cpuTotalTicks;
       }
-      
+
       if(((DMCNT_H[1] >> 5) & 3) == 3) {
         dmaDest[1] = DMDAD_L[1] | (DMDAD_H[1] << 16);
       }
-      
+
       if(!(DMCNT_H[1] & 0x0200) || (reason == 0)) {
         DMCNT_H[1] &= 0x7FFF;
         UPDATE_REG(0xC6, DMCNT_H[1]);
       }
     }
   }
-  
+
   // DMA 2
   if((DMCNT_H[2] & 0x8000) && (dmamask & 4)) {
     if(((DMCNT_H[2] >> 12) & 3) == reason) {
@@ -1585,7 +1574,7 @@ void CPUCheckDMA(int reason, int dmamask)
       case 2:
         destIncrement = 0;
         break;
-      }      
+      }
       if(reason == 3) {
         doDMA(dmaSource[2], dmaDest[2], sourceIncrement, 0, 4,
               0x0400);
@@ -1605,7 +1594,7 @@ void CPUCheckDMA(int reason, int dmamask)
       if(((DMCNT_H[2] >> 5) & 3) == 3) {
         dmaDest[2] = DMDAD_L[2] | (DMDAD_H[2] << 16);
       }
-      
+
       if(!(DMCNT_H[2] & 0x0200) || (reason == 0)) {
         DMCNT_H[2] &= 0x7FFF;
         UPDATE_REG(0xD2, DMCNT_H[2]);
@@ -1637,7 +1626,7 @@ void CPUCheckDMA(int reason, int dmamask)
       case 2:
         destIncrement = 0;
         break;
-      }      
+      }
       doDMA(dmaSource[3], dmaDest[3], sourceIncrement, destIncrement,
             DMCNT_L[3] ? DMCNT_L[3] : 0x10000,
             DMCNT_H[3] & 0x0400);
@@ -1650,7 +1639,7 @@ void CPUCheckDMA(int reason, int dmamask)
       if(((DMCNT_H[3] >> 5) & 3) == 3) {
         dmaDest[3] = DMDAD_L[3] | (DMDAD_H[3] << 16);
       }
-      
+
       if(!(DMCNT_H[3] & 0x0200) || (reason == 0)) {
         DMCNT_H[3] &= 0x7FFF;
         UPDATE_REG(0xDE, DMCNT_H[3]);
@@ -1661,7 +1650,7 @@ void CPUCheckDMA(int reason, int dmamask)
 
 void CPUUpdateRegister(uint32 address, uint16 value)
 {
-  switch(address) 
+  switch(address)
   {
   case 0x00:
     {
@@ -1738,7 +1727,7 @@ void CPUUpdateRegister(uint32 address, uint16 value)
   case 0x16:
     BGVOFS[1] = value & 511;
     UPDATE_REG(0x16, BGVOFS[1]);
-    break;      
+    break;
   case 0x18:
     BGHOFS[2] = value & 511;
     UPDATE_REG(0x18, BGHOFS[2]);
@@ -1754,7 +1743,7 @@ void CPUUpdateRegister(uint32 address, uint16 value)
   case 0x1E:
     BGVOFS[3] = value & 511;
     UPDATE_REG(0x1E, BGVOFS[3]);
-    break;      
+    break;
   case 0x20:
     BG2PA = value;
     UPDATE_REG(0x20, BG2PA);
@@ -1779,17 +1768,17 @@ void CPUUpdateRegister(uint32 address, uint16 value)
   case 0x2A:
     BG2X_H = (value & 0xFFF);
     UPDATE_REG(0x2A, BG2X_H);
-    gfxBG2Changed |= 1;    
+    gfxBG2Changed |= 1;
     break;
   case 0x2C:
     BG2Y_L = value;
     UPDATE_REG(0x2C, BG2Y_L);
-    gfxBG2Changed |= 2;    
+    gfxBG2Changed |= 2;
     break;
   case 0x2E:
     BG2Y_H = value & 0xFFF;
     UPDATE_REG(0x2E, BG2Y_H);
-    gfxBG2Changed |= 2;    
+    gfxBG2Changed |= 2;
     break;
   case 0x30:
     BG3PA = value;
@@ -1815,17 +1804,17 @@ void CPUUpdateRegister(uint32 address, uint16 value)
   case 0x3A:
     BG3X_H = value & 0xFFF;
     UPDATE_REG(0x3A, BG3X_H);
-    gfxBG3Changed |= 1;    
+    gfxBG3Changed |= 1;
     break;
   case 0x3C:
     BG3Y_L = value;
     UPDATE_REG(0x3C, BG3Y_L);
-    gfxBG3Changed |= 2;    
+    gfxBG3Changed |= 2;
     break;
   case 0x3E:
     BG3Y_H = value & 0xFFF;
     UPDATE_REG(0x3E, BG3Y_H);
-    gfxBG3Changed |= 2;    
+    gfxBG3Changed |= 2;
     break;
   case 0x40:
     WIN0H = value;
@@ -1835,8 +1824,8 @@ void CPUUpdateRegister(uint32 address, uint16 value)
   case 0x42:
     WIN1H = value;
     UPDATE_REG(0x42, WIN1H);
-    CPUUpdateWindow1();    
-    break;      
+    CPUUpdateWindow1();
+    break;
   case 0x44:
     WIN0V = value;
     UPDATE_REG(0x44, WIN0V);
@@ -1899,7 +1888,7 @@ void CPUUpdateRegister(uint32 address, uint16 value)
   case 0x98:
   case 0x9a:
   case 0x9c:
-  case 0x9e:    
+  case 0x9e:
     soundEvent(address&0xFF, value);
     break;
   case 0xB0:
@@ -1928,15 +1917,15 @@ void CPUUpdateRegister(uint32 address, uint16 value)
       value &= 0xF7E0;
 
       DMCNT_H[0] = value;
-      UPDATE_REG(0xBA, DMCNT_H[0]);    
-    
+      UPDATE_REG(0xBA, DMCNT_H[0]);
+
       if(start && (value & 0x8000)) {
         dmaSource[0] = DMSAD_L[0] | (DMSAD_H[0] << 16);
         dmaDest[0] = DMDAD_L[0] | (DMDAD_H[0] << 16);
         CPUCheckDMA(0, 1);
       }
     }
-    break;      
+    break;
   case 0xBC:
     DMSAD_L[1] = value;
     UPDATE_REG(0xBC, DMSAD_L[1]);
@@ -1961,10 +1950,10 @@ void CPUUpdateRegister(uint32 address, uint16 value)
     {
       bool start = ((DMCNT_H[1] ^ value) & 0x8000) ? true : false;
       value &= 0xF7E0;
-      
+
       DMCNT_H[1] = value;
       UPDATE_REG(0xC6, DMCNT_H[1]);
-      
+
       if(start && (value & 0x8000)) {
         dmaSource[1] = DMSAD_L[1] | (DMSAD_H[1] << 16);
         dmaDest[1] = DMDAD_L[1] | (DMDAD_H[1] << 16);
@@ -1995,18 +1984,18 @@ void CPUUpdateRegister(uint32 address, uint16 value)
   case 0xD2:
     {
       bool start = ((DMCNT_H[2] ^ value) & 0x8000) ? true : false;
-      
+
       value &= 0xF7E0;
-      
+
       DMCNT_H[2] = value;
       UPDATE_REG(0xD2, DMCNT_H[2]);
-      
+
       if(start && (value & 0x8000)) {
         dmaSource[2] = DMSAD_L[2] | (DMSAD_H[2] << 16);
         dmaDest[2] = DMDAD_L[2] | (DMDAD_H[2] << 16);
 
         CPUCheckDMA(0, 4);
-      }            
+      }
     }
     break;
   case 0xD4:
@@ -2037,7 +2026,7 @@ void CPUUpdateRegister(uint32 address, uint16 value)
 
       DMCNT_H[3] = value;
       UPDATE_REG(0xDE, DMCNT_H[3]);
-    
+
       if(start && (value & 0x8000)) {
         dmaSource[3] = DMSAD_L[3] | (DMSAD_H[3] << 16);
         dmaDest[3] = DMDAD_L[3] | (DMDAD_H[3] << 16);
@@ -2109,19 +2098,19 @@ void CPUUpdateRegister(uint32 address, uint16 value)
   case 0x204:
     {
       memoryWait[0x0e] = memoryWaitSeq[0x0e] = gamepakRamWaitState[value & 3];
-      
+
       memoryWait[0x08] = memoryWait[0x09] = gamepakWaitState[(value >> 2) & 3];
       memoryWaitSeq[0x08] = memoryWaitSeq[0x09] =
         gamepakWaitState0[(value >> 4) & 1];
-        
+
       memoryWait[0x0a] = memoryWait[0x0b] = gamepakWaitState[(value >> 5) & 3];
       memoryWaitSeq[0x0a] = memoryWaitSeq[0x0b] =
         gamepakWaitState1[(value >> 7) & 1];
-        
+
       memoryWait[0x0c] = memoryWait[0x0d] = gamepakWaitState[(value >> 8) & 3];
       memoryWaitSeq[0x0c] = memoryWaitSeq[0x0d] =
         gamepakWaitState2[(value >> 10) & 1];
-         
+
       for(int i = 8; i < 15; i++) {
         memoryWait32[i] = memoryWait[i] + memoryWaitSeq[i] + 1;
         memoryWaitSeq32[i] = memoryWaitSeq[i]*2 + 1;
@@ -2161,10 +2150,10 @@ void applyTimer ()
 {
   if (timerOnOffDelay & 1)
   {
-    timers[0].ClockReload = TIMER_TICKS[timers[0].Value & 3];        
+    timers[0].ClockReload = TIMER_TICKS[timers[0].Value & 3];
     if(!timers[0].On && (timers[0].Value & 0x80)) {
       // reload the counter
-      timers[0].D = timers[0].Reload;      
+      timers[0].D = timers[0].Reload;
       timers[0].Ticks = (0x10000 - timers[0].D) << timers[0].ClockReload;
       UPDATE_REG(0x100, timers[0].D);
     }
@@ -2175,10 +2164,10 @@ void applyTimer ()
   }
   if (timerOnOffDelay & 2)
   {
-    timers[1].ClockReload = TIMER_TICKS[timers[1].Value & 3];        
+    timers[1].ClockReload = TIMER_TICKS[timers[1].Value & 3];
     if(!timers[1].On && (timers[1].Value & 0x80)) {
       // reload the counter
-      timers[1].D = timers[1].Reload;      
+      timers[1].D = timers[1].Reload;
       timers[1].Ticks = (0x10000 - timers[1].D) << timers[1].ClockReload;
       UPDATE_REG(0x104, timers[1].D);
     }
@@ -2188,10 +2177,10 @@ void applyTimer ()
   }
   if (timerOnOffDelay & 4)
   {
-    timers[2].ClockReload = TIMER_TICKS[timers[2].Value & 3];        
+    timers[2].ClockReload = TIMER_TICKS[timers[2].Value & 3];
     if(!timers[2].On && (timers[2].Value & 0x80)) {
       // reload the counter
-      timers[2].D = timers[2].Reload;      
+      timers[2].D = timers[2].Reload;
       timers[2].Ticks = (0x10000 - timers[2].D) << timers[2].ClockReload;
       UPDATE_REG(0x108, timers[2].D);
     }
@@ -2201,10 +2190,10 @@ void applyTimer ()
   }
   if (timerOnOffDelay & 8)
   {
-    timers[3].ClockReload = TIMER_TICKS[timers[3].Value & 3];        
+    timers[3].ClockReload = TIMER_TICKS[timers[3].Value & 3];
     if(!timers[3].On && (timers[3].Value & 0x80)) {
       // reload the counter
-      timers[3].D = timers[3].Reload;      
+      timers[3].D = timers[3].Reload;
       timers[3].Ticks = (0x10000 - timers[3].D) << timers[3].ClockReload;
       UPDATE_REG(0x10C, timers[3].D);
     }
@@ -2240,7 +2229,7 @@ static void FLASH_SRAM_Write(uint32 A, uint32 V)
 
 void CPUWriteMemory(uint32 address, uint32 value)
 {
- switch(address >> 24) 
+ switch(address >> 24)
  {
   case 0x02:
       WRITE32LE(((uint32 *)&workRAM[address & 0x3FFFC]), value);
@@ -2271,7 +2260,7 @@ void CPUWriteMemory(uint32 address, uint32 value)
     break;
 
   case 0x0D:
-    if(cpuEEPROMEnabled) 
+    if(cpuEEPROMEnabled)
     {
      eepromWrite(address, value);
      break;
@@ -2288,14 +2277,14 @@ void CPUWriteMemory(uint32 address, uint32 value)
 
 void CPUWriteHalfWord(uint32 address, uint16 value)
 {
- switch(address >> 24) 
+ switch(address >> 24)
  {
   case 2:
       WRITE16LE(((uint16 *)&workRAM[address & 0x3FFFE]),value);
     break;
   case 3:
       WRITE16LE(((uint16 *)&internalRAM[address & 0x7ffe]), value);
-    break;    
+    break;
   case 4:
     if(address < 0x4000400)
       CPUUpdateRegister(address & 0x3fe, value);
@@ -2323,7 +2312,7 @@ void CPUWriteHalfWord(uint32 address, uint16 value)
      goto unwritable;
     break;
   case 13:
-    if(cpuEEPROMEnabled) 
+    if(cpuEEPROMEnabled)
     {
      eepromWrite(address, (uint8)value);
      break;
@@ -2342,7 +2331,7 @@ void CPUWriteHalfWord(uint32 address, uint16 value)
 
 void CPUWriteByte(uint32 address, uint8 b)
 {
- switch(address >> 24) 
+ switch(address >> 24)
  {
   case 2:
       workRAM[address & 0x3FFFF] = b;
@@ -2353,17 +2342,17 @@ void CPUWriteByte(uint32 address, uint8 b)
       break;
 
   case 4:
-    if(address < 0x4000400) 
+    if(address < 0x4000400)
     {
-     switch(address & 0x3FF) 
+     switch(address & 0x3FF)
      {
       case 0x301:
-	if(b == 0x80)
-	  stopState = true;
-	holdState = 1;
-	holdType = -1;
-	cpuNextEvent = cpuTotalTicks;
-	break;
+        if(b == 0x80)
+         stopState = true;
+        holdState = 1;
+        holdType = -1;
+        cpuNextEvent = cpuTotalTicks;
+        break;
 
       case 0x60:
       case 0x61:
@@ -2404,18 +2393,18 @@ void CPUWriteByte(uint32 address, uint8 b)
       case 0x9c:
       case 0x9d:
       case 0x9e:
-      case 0x9f:      
-	soundEvent(address&0xFF, b);
-	break;
+      case 0x9f:
+        soundEvent(address&0xFF, b);
+        break;
       default:
-	if(address & 1)
-	  CPUUpdateRegister(address & 0x3fe,
-			    ((READ16LE(((uint16 *)&ioMem[address & 0x3fe])))
-			     & 0x00FF) |
-			    b<<8);
-	else
-	  CPUUpdateRegister(address & 0x3fe,
-			    ((READ16LE(((uint16 *)&ioMem[address & 0x3fe])) & 0xFF00) | b));
+        if(address & 1)
+         CPUUpdateRegister(address & 0x3fe,
+           ((READ16LE(((uint16 *)&ioMem[address & 0x3fe])))
+           & 0x00FF) |
+           b<<8);
+        else
+         CPUUpdateRegister(address & 0x3fe,
+           ((READ16LE(((uint16 *)&ioMem[address & 0x3fe])) & 0xFF00) | b));
       }
       break;
     } else goto unwritable;
@@ -2425,21 +2414,21 @@ void CPUWriteByte(uint32 address, uint8 b)
     *((uint16 *)&paletteRAM[address & 0x3FE]) = (b << 8) | b;
     break;
   case 6:
-     address = (address & 0x1fffe);
-     if (((DISPCNT & 7) >2) && ((address & 0x1C000) == 0x18000))
-      return;
-     if ((address & 0x18000) == 0x18000)
-      address &= 0x17fff;
-    // no need to switch 
+    address = (address & 0x1fffe);
+    if (((DISPCNT & 7) >2) && ((address & 0x1C000) == 0x18000))
+     return;
+    if ((address & 0x18000) == 0x18000)
+     address &= 0x17fff;
+    // no need to switch
     // byte writes to OBJ VRAM are ignored
     if ((address) < objTilesAddress[((DISPCNT&7)+1)>>2])
-	*((uint16 *)&vram[address]) = (b << 8) | b;
+     *((uint16 *)&vram[address]) = (b << 8) | b;
     break;
   case 7:
     // no need to switch
     // byte writes to OAM are ignored
     //    *((uint16 *)&oam[address & 0x3FE]) = (b << 8) | b;
-    break;    
+    break;
 
   case 0xD:
     if(cpuEEPROMEnabled) {
@@ -2452,12 +2441,132 @@ void CPUWriteByte(uint32 address, uint8 b)
     FLASH_SRAM_Write(address, b);
     break;
 
-    // default
+  // default
   default:
-  unwritable:
+    unwritable:
     break;
  }
 }
+
+typedef struct  {
+   char romtitle[256];
+   char romid[5];
+   int flashSize;
+   int saveType;
+   int rtcEnabled;
+   int mirroringEnabled;
+   int useBios;
+} ini_t;
+
+static const ini_t gbaover[256] = {
+   //romtitle,							    	romid	flash	save	rtc	mirror	bios
+   {"2 Games in 1 - Dragon Ball Z - The Legacy of Goku I & II (USA)",	"BLFE",	0,	1,	0,	0,	0},
+   {"2 Games in 1 - Dragon Ball Z - Buu's Fury + Dragon Ball GT - Transformation (USA)", "BUFE", 0, 1, 0, 0, 0},
+   {"Boktai - The Sun Is in Your Hand (Europe)(En,Fr,De,Es,It)",		"U3IP",	0,	0,	1,	0,	0},
+   {"Boktai - The Sun Is in Your Hand (USA)",				"U3IE",	0,	0,	1,	0,	0},
+   {"Boktai 2 - Solar Boy Django (USA)",					"U32E",	0,	0,	1,	0,	0},
+   {"Boktai 2 - Solar Boy Django (Europe)(En,Fr,De,Es,It)",		"U32P",	0,	0,	1,	0,	0},
+   {"Bokura no Taiyou - Taiyou Action RPG (Japan)",			"U3IJ",	0,	0,	1,	0,	0},
+   {"Card e-Reader+ (Japan)",						"PSAJ",	131072,	0,	0,	0,	0},
+   {"Classic NES Series - Bomberman (USA, Europe)",			"FBME",	0,	1,	0,	1,	0},
+   {"Classic NES Series - Castlevania (USA, Europe)",			"FADE",	0,	1,	0,	1,	0},
+   {"Classic NES Series - Donkey Kong (USA, Europe)",			"FDKE",	0,	1,	0,	1,	0},
+   {"Classic NES Series - Dr. Mario (USA, Europe)",			"FDME",	0,	1,	0,	1,	0},
+   {"Classic NES Series - Excitebike (USA, Europe)",			"FEBE",	0,	1,	0,	1,	0},
+   {"Classic NES Series - Legend of Zelda (USA, Europe)",			"FZLE",	0,	1,	0,	1,	0},
+   {"Classic NES Series - Ice Climber (USA, Europe)",			"FICE",	0,	1,	0,	1,	0},
+   {"Classic NES Series - Metroid (USA, Europe)",				"FMRE",	0,	1,	0,	1,	0},
+   {"Classic NES Series - Pac-Man (USA, Europe)",				"FP7E",	0,	1,	0,	1,	0},
+   {"Classic NES Series - Super Mario Bros. (USA, Europe)",		"FSME",	0,	1,	0,	1,	0},
+   {"Classic NES Series - Xevious (USA, Europe)",				"FXVE",	0,	1,	0,	1,	0},
+   {"Classic NES Series - Zelda II - The Adventure of Link (USA, Europe)",	"FLBE",	0,	1,	0,	1,	0},
+   {"Digi Communication 2 - Datou! Black Gemagema Dan (Japan)",		"BDKJ",	0,	1,	0,	0,	0},
+   {"e-Reader (USA)",							"PSAE",	131072,	0,	0,	0,	0},
+   {"Dragon Ball GT - Transformation (USA)",				"BT4E",	0,	1,	0,	0,	0},
+   {"Dragon Ball Z - Buu's Fury (USA)",					"BG3E",	0,	1,	0,	0,	0},
+   {"Dragon Ball Z - Taiketsu (Europe)(En,Fr,De,Es,It)",			"BDBP",	0,	1,	0,	0,	0},
+   {"Dragon Ball Z - Taiketsu (USA)",					"BDBE",	0,	1,	0,	0,	0},
+   {"Dragon Ball Z - The Legacy of Goku II International (Japan)",		"ALFJ",	0,	1,	0,	0,	0},
+   {"Dragon Ball Z - The Legacy of Goku II (Europe)(En,Fr,De,Es,It)",	"ALFP", 0,	1,	0,	0,	0},
+   {"Dragon Ball Z - The Legacy of Goku II (USA)",				"ALFE",	0,	1,	0,	0,	0},
+   {"Dragon Ball Z - The Legacy Of Goku (Europe)(En,Fr,De,Es,It)",		"ALGP",	0,	1,	0,	0,	0},
+   {"Dragon Ball Z - The Legacy of Goku (USA)",				"ALGE",	131072,	1,	0,	0,	0},
+   {"F-Zero - Climax (Japan)",						"BFTJ",	131072,	0,	0,	0,	0},
+   {"Famicom Mini Vol. 01 - Super Mario Bros. (Japan)",			"FMBJ",	0,	1,	0,	1,	0},
+   {"Famicom Mini Vol. 12 - Clu Clu Land (Japan)",				"FCLJ",	0,	1,	0,	1,	0},
+   {"Famicom Mini Vol. 13 - Balloon Fight (Japan)",			"FBFJ",	0,	1,	0,	1,	0},
+   {"Famicom Mini Vol. 14 - Wrecking Crew (Japan)",			"FWCJ",	0,	1,	0,	1,	0},
+   {"Famicom Mini Vol. 15 - Dr. Mario (Japan)",				"FDMJ",	0,	1,	0,	1,	0},
+   {"Famicom Mini Vol. 16 - Dig Dug (Japan)",				"FTBJ",	0,	1,	0,	1,	0},
+   {"Famicom Mini Vol. 17 - Takahashi Meijin no Boukenjima (Japan)",	"FTBJ",	0,	1,	0,	1,	0},
+   {"Famicom Mini Vol. 18 - Makaimura (Japan)",				"FMKJ",	0,	1,	0,	1,	0},
+   {"Famicom Mini Vol. 19 - Twin Bee (Japan)",				"FTWJ",	0,	1,	0,	1,	0},
+   {"Famicom Mini Vol. 20 - Ganbare Goemon! Karakuri Douchuu (Japan)",	"FGGJ",	0,	1,	0,	1,	0},
+   {"Famicom Mini Vol. 21 - Super Mario Bros. 2 (Japan)",			"FM2J",	0,	1,	0,	1,	0},
+   {"Famicom Mini Vol. 22 - Nazo no Murasame Jou (Japan)",			"FNMJ",	0,	1,	0,	1,	0},
+   {"Famicom Mini Vol. 23 - Metroid (Japan)",				"FMRJ",	0,	1,	0,	1,	0},
+   {"Famicom Mini Vol. 24 - Hikari Shinwa - Palthena no Kagami (Japan)",	"FPTJ",	0,	1,	0,	1,	0},
+   {"Famicom Mini Vol. 25 - The Legend of Zelda 2 - Link no Bouken (Japan)","FLBJ",0,	1,	0,	1,	0},
+   {"Famicom Mini Vol. 26 - Famicom Mukashi Banashi - Shin Onigashima - Zen Kou Hen (Japan)","FFMJ",0,1,0,	1,	0},
+   {"Famicom Mini Vol. 27 - Famicom Tantei Club - Kieta Koukeisha - Zen Kou Hen (Japan)","FTKJ",0,1,0,	1,	0},
+   {"Famicom Mini Vol. 28 - Famicom Tantei Club Part II - Ushiro ni Tatsu Shoujo - Zen Kou Hen (Japan)","FTUJ",0,1,0,1,0},
+   {"Famicom Mini Vol. 29 - Akumajou Dracula (Japan)",			"FADJ",	0,	1,	0,	1,	0},
+   {"Famicom Mini Vol. 30 - SD Gundam World - Gachapon Senshi Scramble Wars (Japan)","FSDJ",0,1,	0,	1,	0},
+   {"Game Boy Wars Advance 1+2 (Japan)",					"BGWJ",	131072,	0,	0,	0,	0},
+   {"Golden Sun - The Lost Age (USA)",					"AGFE",	65536,	0,	0,	1,	0},
+   {"Golden Sun (USA)",							"AGSE",	65536,	0,	0,	1,	0},
+   {"Iridion II (Europe) (En,Fr,De)",							"AI2P",	0,	5,	0,	0,	0},
+   {"Iridion II (USA)",							"AI2E",	0,	5,	0,	0,	0},
+   {"Koro Koro Puzzle - Happy Panechu! (Japan)",				"KHPJ",	0,	4,	0,	0,	0},
+   {"Mario vs. Donkey Kong (Europe)",					"BM5P",	0,	3,	0,	0,	0},
+   {"Pocket Monsters - Emerald (Japan)",					"BPEJ",	131072,	0,	1,	0,	0},
+   {"Pocket Monsters - Fire Red (Japan)",					"BPRJ",	131072,	0,	0,	0,	0},
+   {"Pocket Monsters - Leaf Green (Japan)",				"BPGJ",	131072,	0,	0,	0,	0},
+   {"Pocket Monsters - Ruby (Japan)",					"AXVJ",	131072,	0,	1,	0,	0},
+   {"Pocket Monsters - Sapphire (Japan)",					"AXPJ",	131072,	0,	1,	0,	0},
+   {"Pokemon Mystery Dungeon - Red Rescue Team (USA, Australia)",		"B24E",	131072,	0,	0,	0,	0},
+   {"Pokemon Mystery Dungeon - Red Rescue Team (En,Fr,De,Es,It)",		"B24P",	131072,	0,	0,	0,	0},
+   {"Pokemon - Blattgruene Edition (Germany)",				"BPGD",	131072,	0,	0,	0,	0},
+   {"Pokemon - Edicion Rubi (Spain)",					"AXVS",	131072,	0,	1,	0,	0},
+   {"Pokemon - Edicion Esmeralda (Spain)",					"BPES",	131072,	0,	1,	0,	0},
+   {"Pokemon - Edicion Rojo Fuego (Spain)",				"BPRS",	131072,	1,	0,	0,	0},
+   {"Pokemon - Edicion Verde Hoja (Spain)",				"BPGS",	131072,	1,	0,	0,	0},
+   {"Pokemon - Eidicion Zafiro (Spain)",					"AXPS",	131072,	0,	1,	0,	0},
+   {"Pokemon - Emerald Version (USA, Europe)",				"BPEE",	131072,	0,	1,	0,	0},
+   {"Pokemon - Feuerrote Edition (Germany)",				"BPRD",	131072,	0,	0,	0,	0},
+   {"Pokemon - Fire Red Version (USA, Europe)",				"BPRE",	131072,	0,	0,	0,	0},
+   {"Pokemon - Leaf Green Version (USA, Europe)",				"BPGE",	131072,	0,	0,	0,	0},
+   {"Pokemon - Rubin Edition (Germany)",					"AXVD",	131072,	0,	1,	0,	0},
+   {"Pokemon - Ruby Version (USA, Europe)",				"AXVE",	131072,	0,	1,	0,	0},
+   {"Pokemon - Sapphire Version (USA, Europe)",				"AXPE",	131072,	0,	1,	0,	0},
+   {"Pokemon - Saphir Edition (Germany)",					"AXPD",	131072,	0,	1,	0,	0},
+   {"Pokemon - Smaragd Edition (Germany)",					"BPED",	131072,	0,	1,	0,	0},
+   {"Pokemon - Version Emeraude (France)",					"BPEF",	131072,	0,	1,	0,	0},
+   {"Pokemon - Version Rouge Feu (France)",				"BPRF",	131072,	0,	0,	0,	0},
+   {"Pokemon - Version Rubis (France)",					"AXVF",	131072,	0,	1,	0,	0},
+   {"Pokemon - Version Saphir (France)",					"AXPF",	131072,	0,	1,	0,	0},
+   {"Pokemon - Version Vert Feuille (France)",				"BPGF",	131072,	0,	0,	0,	0},
+   {"Pokemon - Versione Rubino (Italy)",					"AXVI",	131072,	0,	1,	0,	0},
+   {"Pokemon - Versione Rosso Fuoco (Italy)",				"BPRI",	131072,	0,	0,	0,	0},
+   {"Pokemon - Versione Smeraldo (Italy)",					"BPEI",	131072,	0,	1,	0,	0},
+   {"Pokemon - Versione Verde Foglia (Italy)",				"BPGI",	131072,	0,	0,	0,	0},
+   {"Pokemon - Versione Zaffiro (Italy)",					"AXPI",	131072,	0,	1,	0,	0},
+   {"Rockman EXE 4.5 - Real Operation (Japan)",				"BR4J",	0,	0,	1,	0,	0},
+   {"Rocky (Europe)(En,Fr,De,Es,It)",					"AROP",	0,	1,	0,	0,	0},
+   {"Rocky (USA)(En,Fr,De,Es,It)",						"AR8e",	0,	1,	0,	0,	0},
+   {"Sennen Kazoku (Japan)",						"BKAJ",	131072,	0,	1,	0,	0},
+   {"Shin Bokura no Taiyou - Gyakushuu no Sabata (Japan)",			"U33J",	0,	1,	1,	0,	0},
+   {"Super Mario Advance 4 (Japan)",					"AX4J",	131072,	0,	0,	0,	0},
+   {"Super Mario Advance 4 - Super Mario Bros. 3 (Europe)(En,Fr,De,Es,It)","AX4P",	131072,	0,	0,	0,	0},
+   {"Super Mario Advance 4 - Super Mario Bros 3 - Super Mario Advance 4 v1.1 (USA)","AX4E",131072,0,0,0,0},
+   {"Top Gun - Combat Zones (USA)(En,Fr,De,Es,It)",			"A2YE",	0,	5,	0,	0,	0},
+   {"Yoshi's Universal Gravitation (Europe)(En,Fr,De,Es,It)",		"KYGP",	0,	4,	0,	0,	0},
+   {"Yoshi no Banyuuinryoku (Japan)",					"KYGJ",	0,	4,	0,	0,	0},
+   {"Yoshi - Topsy-Turvy (USA)",						"KYGE",	0,	1,	0,	0,	0},
+   {"Yu-Gi-Oh! GX - Duel Academy (USA)",					"BYGE",	0,	2,	0,	0,	1},
+   {"Yu-Gi-Oh! - Ultimate Masters - 2006 (Europe)(En,Jp,Fr,De,Es,It)",	"BY6P",	0,	2,	0,	0,	0},
+   {"Zoku Bokura no Taiyou - Taiyou Shounen Django (Japan)",		"U32J",	0,	0,	1,	0,	0}
+};
 
 uint8 cpuBitsSet[256];
 uint8 cpuLowestBitSet[256];
@@ -2465,10 +2574,25 @@ uint8 cpuLowestBitSet[256];
 static bool CPUInit(const std::string bios_fn)
 {
  FILE *memfp;
+ char buffer[5];
+
+ buffer[0] = rom[0xac];
+ buffer[1] = rom[0xad];
+ buffer[2] = rom[0xae];
+ buffer[3] = rom[0xaf];
+ buffer[4] = 0;
 
  FlashSizeSet = FALSE;
 
+ cpuSramEnabled = true;
+ cpuFlashEnabled = true;
+ cpuEEPROMEnabled = true;
+ cpuEEPROMSensorEnabled = true;
+
  memfp = fopen(MDFN_MakeFName(MDFNMKF_SAV, 0, "type").c_str(), "rb");
+
+ MDFN_printf("GameID:    %s\n", buffer);
+
  if(memfp)
  {
   char linebuffer[256];
@@ -2486,7 +2610,7 @@ static bool CPUInit(const std::string bios_fn)
    if(acount < 1)
     continue;
 
-   //MDFN_printf(_("Backup memory type override: %s %s\n"), linebuffer, (acount > 1) ? args[1] : "");
+   MDFN_printf(_("Backup memory type override: %s %s\n"), args[0], (acount > 1) ? args[1] : "");
 
    if(!strcasecmp(args[0], "sram"))
    {
@@ -2524,14 +2648,90 @@ static bool CPUInit(const std::string bios_fn)
  }
  else
  {
-  cpuSramEnabled = true;
-  cpuFlashEnabled = true;
-  cpuEEPROMEnabled = true;
-  cpuEEPROMSensorEnabled = true;
+  for(int i = 0; i < 256; i++)
+  {
+   if(!strcmp(gbaover[i].romid, buffer))
+   {
+    MDFN_printf("Found ROM in override list.\n");
+
+    bool enableRTC = gbaover[i].rtcEnabled;
+    if (enableRTC)
+    {
+     MDFN_printf("RTC:       enabled\n");
+     GBA_RTC = new RTC();
+    }
+
+    int size_temp = gbaover[i].flashSize;
+    if(size_temp != 0)
+     size_temp = gbaover[i].flashSize;
+    else
+     size_temp = 65536;
+
+    MDFN_printf("flashSize: %u\n", size_temp);
+
+    if (size_temp == 0x10000 || size_temp == 0x20000)
+    {
+      flashSetSize(size_temp);
+      FlashSizeSet = true;
+    }
+
+    bool mirroring = gbaover[i].mirroringEnabled;
+    doMirroring(mirroring);
+
+    int cpuSaveType = gbaover[i].saveType;
+    switch(cpuSaveType) {
+    default: // automatic
+      cpuSramEnabled = true;
+      cpuFlashEnabled = true;
+      cpuEEPROMEnabled = true;
+      cpuEEPROMSensorEnabled = true;
+      MDFN_printf("Save type: auto\n");
+      break;
+    case 1: // EEPROM
+      cpuSramEnabled = false;
+      cpuFlashEnabled = false;
+      cpuEEPROMEnabled = true;
+      cpuEEPROMSensorEnabled = false;
+      // EEPROM usage is automatically detected
+      MDFN_printf("Save type: eeprom\n");
+      break;
+    case 2: // SRAM
+      cpuSramEnabled = true;
+      cpuFlashEnabled = false;
+      cpuEEPROMEnabled = false;
+      cpuEEPROMSensorEnabled = false;
+      MDFN_printf("Save type: sram\n");
+      break;
+    case 3: // FLASH
+      cpuSramEnabled = false;
+      cpuFlashEnabled = true;
+      cpuEEPROMEnabled = false;
+      cpuEEPROMSensorEnabled = false;
+      MDFN_printf("Save type: Flash\n");
+      break;
+    case 4: // EEPROM+Sensor
+      cpuSramEnabled = false;
+      cpuFlashEnabled = false;
+      cpuEEPROMEnabled = true;
+      cpuEEPROMSensorEnabled = true;
+      MDFN_printf("Save type: Eeprom + sensor\n");
+      break;
+    case 5: // NONE
+      cpuSramEnabled = false;
+      cpuFlashEnabled = false;
+      cpuEEPROMEnabled = false;
+      cpuEEPROMSensorEnabled = false;
+      MDFN_printf("Save type: none\n");
+      break;
+    }
+
+    break;
+   }
+  }
  }
 
  useBios = false;
-  
+
  if(bios_fn != "" && bios_fn != "0" && bios_fn != "none")
  {
   static const FileExtensionSpecStruct KnownBIOSExtensions[] =
@@ -2545,25 +2745,22 @@ static bool CPUInit(const std::string bios_fn)
 
   MDFNFILE bios_fp;
 
-  if(!bios_fp.Open(MDFN_MakeFName(MDFNMKF_FIRMWARE, 0, bios_fn.c_str()), KnownBIOSExtensions, _("GBA BIOS")))
+  if(bios_fp.Open(MDFN_MakeFName(MDFNMKF_FIRMWARE, 0, bios_fn.c_str()), KnownBIOSExtensions, _("GBA BIOS")))
   {
-   return(0);
-  }
-  
-  if(GET_FSIZE(bios_fp) != 0x4000)
-  {
-   MDFN_PrintError(_("Invalid BIOS file size"));
+   if(GET_FSIZE(bios_fp) == 0x4000)
+   {
+    memcpy(bios, GET_FDATA(bios_fp), 0x4000);
+    useBios = true;
+   }
+   else
+    log_cb(RETRO_LOG_WARN, "Invalid BIOS file size.\n");
    bios_fp.Close();
-   return(0);
   }
-
-  memcpy(bios, GET_FDATA(bios_fp), 0x4000);
-
-  bios_fp.Close();
-  useBios = true;
+  else
+   log_cb(RETRO_LOG_WARN, "Cannot find GBA bios file. Using high-level bios emulation.\n");
  }
 
- if(!useBios) 
+ if(!useBios)
  {
   memcpy(bios, myROM, sizeof(myROM));
   Endian_A32_NE_to_LE(bios, sizeof(myROM) / 4);
@@ -2583,7 +2780,7 @@ static bool CPUInit(const std::string bios_fn)
       if(i & (1 << j))
         count++;
     cpuBitsSet[i] = count;
-    
+
     for(j = 0; j < 8; j++)
       if(i & (1 << j))
         break;
@@ -2651,6 +2848,10 @@ static void CPUReset(void)
   // clean io memory
   memset(ioMem, 0, 0x400);
 
+  memset(internalRAM, 0, 0x8000);
+
+  memset(workRAM, 0x00, 0x40000);
+
   DISPCNT  = 0x0080;
   DISPSTAT = 0x0000;
   VCOUNT   = (useBios && !skipBios) ? 0 :0x007E;
@@ -2707,7 +2908,7 @@ static void CPUReset(void)
   IME      = 0x0000;
 
   armMode = 0x1F;
-  
+
   if(cpuIsMultiBoot) {
     reg[13].I = 0x03007F00;
     reg[15].I = 0x02000000;
@@ -2719,15 +2920,15 @@ static void CPUReset(void)
     if(useBios && !skipBios) {
       reg[15].I = 0x00000000;
       armMode = 0x13;
-      armIrqEnable = false;  
+      armIrqEnable = false;
     } else {
       reg[13].I = 0x03007F00;
       reg[15].I = 0x08000000;
       reg[16].I = 0x00000000;
       reg[R13_IRQ].I = 0x03007FA0;
       reg[R13_SVC].I = 0x03007FE0;
-      armIrqEnable = true;      
-    }    
+      armIrqEnable = true;
+    }
   }
   armState = true;
   C_FLAG = false;
@@ -2746,21 +2947,21 @@ static void CPUReset(void)
 
   // disable FIQ
   reg[16].I |= 0x40;
-  
+
   CPUUpdateCPSR();
-  
+
   armNextPC = reg[15].I;
   reg[15].I += 4;
 
   // reset internal state
   holdState = false;
   holdType = 0;
-  
+
   biosProtected[0] = 0x00;
   biosProtected[1] = 0xf0;
   biosProtected[2] = 0x29;
   biosProtected[3] = 0xe1;
-  
+
   lcdTicks = (useBios && !skipBios) ? 1008 : 208;
 
   for(int i = 0; i < 4; i++)
@@ -2787,7 +2988,7 @@ static void CPUReset(void)
   layerEnable = DISPCNT & layerSettings;
 
   CPUUpdateRenderBuffers(true);
-  
+
   for(int i = 0; i < 256; i++) {
     map[i].address = (uint8 *)&dummyAddress;
     map[i].mask = 0;
@@ -2810,7 +3011,7 @@ static void CPUReset(void)
   map[8].address = rom;
   map[8].mask = 0x1FFFFFF;
   map[9].address = rom;
-  map[9].mask = 0x1FFFFFF;  
+  map[9].mask = 0x1FFFFFF;
   map[10].address = rom;
   map[10].mask = 0x1FFFFFF;
   map[12].address = rom;
@@ -2820,7 +3021,7 @@ static void CPUReset(void)
 
   eepromReset();
   GBA_Flash_Reset();
-  
+
   soundReset();
 
   CPUUpdateWindow0();
@@ -2867,10 +3068,10 @@ void CPUInterrupt()
   biosProtected[3] = 0xe5;
 }
 
-unsigned int soundTS = 0;
+uint32 soundTS = 0;
 static uint8 *padq;
 
-static void SetInput(int port, const char *type, void *ptr)
+static void SetInput(unsigned port, const char *type, void *ptr)
 {
  padq = (uint8*)ptr;
 }
@@ -2901,9 +3102,9 @@ static void CPULoop(EmulateSpecStruct* espec, int ticks)
   for(;;) {
     if(!holdState && !SWITicks) {
       if(armState) {
-	clockTicks = RunARM();
+        clockTicks = RunARM();
       } else {
-	clockTicks = RunTHUMB();
+        clockTicks = RunTHUMB();
       }
     } else
       clockTicks = CPUUpdateTicks();
@@ -2923,19 +3124,18 @@ static void CPULoop(EmulateSpecStruct* espec, int ticks)
       clockTicks = cpuNextEvent;
       cpuTotalTicks = 0;
       cpuDmaHack = false;
-    
-    updateLoop:
+
+updateLoop:
 
       if (IRQTicks)
       {
-          IRQTicks -= clockTicks;
+        IRQTicks -= clockTicks;
         if (IRQTicks<0)
           IRQTicks = 0;
       }
       soundTS += clockTicks;
       lcdTicks -= clockTicks;
 
-      
       if(lcdTicks <= 0) {
         if(DISPSTAT & 1) { // V-BLANK
           // if in V-Blank mode, keep computing...
@@ -2955,7 +3155,7 @@ static void CPULoop(EmulateSpecStruct* espec, int ticks)
               UPDATE_REG(0x202, IF);
             }
           }
-          
+
           if(VCOUNT >= 228) { //Reaching last line
             DISPSTAT &= 0xFFFC;
             UPDATE_REG(0x04, DISPSTAT);
@@ -2971,16 +3171,15 @@ static void CPULoop(EmulateSpecStruct* espec, int ticks)
 
             lcdTicks += 1008;
             DISPSTAT &= 0xFFFD;
-            if(VCOUNT == 160) 
-	    {
-	      //ticks = 0;
-		//puts("VBlank");
-                uint32 joy = padbufblah;
-                P1 = 0x03FF ^ (joy & 0x3FF);
-                //if(cpuEEPROMSensorEnabled)
+            if(VCOUNT == 160) {
+              //ticks = 0;
+              //puts("VBlank");
+              uint32 joy = padbufblah;
+              P1 = 0x03FF ^ (joy & 0x3FF);
+              //if(cpuEEPROMSensorEnabled)
                 //systemUpdateMotionSensor();
-                UPDATE_REG(0x130, P1);
-                uint16 P1CNT = READ16LE(((uint16 *)&ioMem[0x132]));
+              UPDATE_REG(0x130, P1);
+              uint16 P1CNT = READ16LE(((uint16 *)&ioMem[0x132]));
               // this seems wrong, but there are cases where the game
               // can enter the stop state without requesting an IRQ from
               // the joypad.
@@ -2998,7 +3197,6 @@ static void CPULoop(EmulateSpecStruct* espec, int ticks)
                   }
                 }
               }
-              
 
               DISPSTAT |= 1;
               DISPSTAT &= 0xFFFD;
@@ -3009,45 +3207,41 @@ static void CPULoop(EmulateSpecStruct* espec, int ticks)
               }
               CPUCheckDMA(1, 0x0f);
             }
-            
+
             UPDATE_REG(0x04, DISPSTAT);
             CPUCompareVCOUNT();
 
           } else {
-            if(!HelloSkipper)
-            {
-	      //printf("RL: %d\n", VCOUNT);
+            if(!HelloSkipper) {
+              //printf("RL: %d\n", VCOUNT);
               const uint32 *src = lineMix;
 
               (*renderLine)();
 
-	      if(surface->format.bpp == 32)
-	      {
-	       const uint32* cm = systemColorMap->v32;
-               uint32 *dest = surface->pixels + VCOUNT * surface->pitch32;
+              if(surface->format.bpp == 32) {
+                const uint32* cm = systemColorMap->v32;
+                uint32 *dest = surface->pixels + VCOUNT * surface->pitch32;
 
-               for(int x = 120; x; x--)
-               {
-                *dest = cm[*src & 0xFFFF];
-                dest++;
-                src++;
-                *dest = cm[*src & 0xFFFF];
-                dest++;
-                src++;
-               }
-	      }
-	      else
-	      {
-	       const uint16* cm = systemColorMap->v16;
-	       uint16* dest = surface->pixels16 + VCOUNT * surface->pitchinpix;
+                for(int x = 120; x; x--)
+                {
+                  *dest = cm[*src & 0xFFFF];
+                  dest++;
+                  src++;
+                  *dest = cm[*src & 0xFFFF];
+                  dest++;
+                  src++;
+                }
+              } else {
+                const uint16* cm = systemColorMap->v16;
+                uint16* dest = surface->pixels16 + VCOUNT * surface->pitchinpix;
 
-               for(int x = 0; x < 240; x += 2)
-               {
-                dest[x + 0] = cm[(uint16)src[x + 0]];
-                dest[x + 1] = cm[(uint16)src[x + 1]];
-               }
-	      }
-	      MDFN_MidLineUpdate(espec, VCOUNT);
+                for(int x = 0; x < 240; x += 2)
+                {
+                  dest[x + 0] = cm[(uint16)src[x + 0]];
+                  dest[x + 1] = cm[(uint16)src[x + 1]];
+                }
+              }
+              MDFN_MidLineUpdate(espec, VCOUNT);
             }
             // entering H-Blank
             DISPSTAT |= 2;
@@ -3058,13 +3252,12 @@ static void CPULoop(EmulateSpecStruct* espec, int ticks)
               IF |= 2;
               UPDATE_REG(0x202, IF);
             }
-	    if(VCOUNT == 159)
-            {
-             frameready = 1;
-             cpuBreakLoop = 1;
+            if(VCOUNT == 159) {
+              frameready = 1;
+              cpuBreakLoop = 1;
             }
           }
-        }       
+        }
       }
 
       if(!stopState) {
@@ -3080,9 +3273,9 @@ static void CPULoop(EmulateSpecStruct* espec, int ticks)
             }
           }
           timers[0].D = 0xFFFF - (timers[0].Ticks >> timers[0].ClockReload);
-          UPDATE_REG(0x100, timers[0].D);            
+          UPDATE_REG(0x100, timers[0].D);
         }
-        
+
         if(timers[1].On) {
           if(timers[1].CNT & 4) {
             if(timerOverflow & 1) {
@@ -3102,7 +3295,7 @@ static void CPULoop(EmulateSpecStruct* espec, int ticks)
             timers[1].Ticks -= clockTicks;
             if(timers[1].Ticks <= 0) {
               timers[1].Ticks += (0x10000 - timers[1].Reload) << timers[1].ClockReload;
-              timerOverflow |= 2;           
+              timerOverflow |= 2;
               soundTimerOverflow(1);
               if(timers[1].CNT & 0x40) {
                 IF |= 0x10;
@@ -3110,10 +3303,10 @@ static void CPULoop(EmulateSpecStruct* espec, int ticks)
               }
             }
             timers[1].D = 0xFFFF - (timers[1].Ticks >> timers[1].ClockReload);
-            UPDATE_REG(0x104, timers[1].D); 
+            UPDATE_REG(0x104, timers[1].D);
           }
         }
-        
+
         if(timers[2].On) {
           if(timers[2].CNT & 4) {
             if(timerOverflow & 2) {
@@ -3132,17 +3325,17 @@ static void CPULoop(EmulateSpecStruct* espec, int ticks)
             timers[2].Ticks -= clockTicks;
             if(timers[2].Ticks <= 0) {
               timers[2].Ticks += (0x10000 - timers[2].Reload) << timers[2].ClockReload;
-              timerOverflow |= 4;           
+              timerOverflow |= 4;
               if(timers[2].CNT & 0x40) {
                 IF |= 0x20;
                 UPDATE_REG(0x202, IF);
               }
             }
             timers[2].D = 0xFFFF - (timers[2].Ticks >> timers[2].ClockReload);
-            UPDATE_REG(0x108, timers[2].D); 
+            UPDATE_REG(0x108, timers[2].D);
           }
         }
-        
+
         if(timers[3].On) {
           if(timers[3].CNT & 4) {
             if(timerOverflow & 4) {
@@ -3159,14 +3352,14 @@ static void CPULoop(EmulateSpecStruct* espec, int ticks)
           } else {
               timers[3].Ticks -= clockTicks;
             if(timers[3].Ticks <= 0) {
-              timers[3].Ticks += (0x10000 - timers[3].Reload) << timers[3].ClockReload;         
+              timers[3].Ticks += (0x10000 - timers[3].Reload) << timers[3].ClockReload;
               if(timers[3].CNT & 0x40) {
                 IF |= 0x40;
                 UPDATE_REG(0x202, IF);
               }
             }
             timers[3].D = 0xFFFF - (timers[3].Ticks >> timers[3].ClockReload);
-            UPDATE_REG(0x10C, timers[3].D); 
+            UPDATE_REG(0x10C, timers[3].D);
           }
         }
       }
@@ -3176,7 +3369,7 @@ static void CPULoop(EmulateSpecStruct* espec, int ticks)
       ticks -= clockTicks;
 
       cpuNextEvent = CPUUpdateTicks();
-      
+
       if(cpuDmaTicksToUpdate > 0) {
         if(cpuDmaTicksToUpdate > cpuNextEvent)
           clockTicks = cpuNextEvent;
@@ -3272,7 +3465,7 @@ static void Emulate(EmulateSpecStruct *espec)
   nf.Gshift = 5;
   nf.Bshift = 0;
   nf.Ashift = 16;
-  
+
   nf.Rprec = 5;
   nf.Gprec = 5;
   nf.Bprec = 5;
@@ -3331,7 +3524,6 @@ static void Emulate(EmulateSpecStruct *espec)
 
  espec->SoundBufSize = MDFNGBASOUND_Flush(espec->SoundBuf, espec->SoundBufMaxSize);
 }
-
 static void SetLayerEnableMask(uint64 mask)
 {
  layerSettings = mask << 8;
@@ -3395,10 +3587,10 @@ static InputDeviceInfoStruct InputDeviceInfo[] =
 
 static const InputPortInfoStruct PortInfo[] =
 {
- { "builtin", "Built-In", sizeof(InputDeviceInfo) / sizeof(InputDeviceInfoStruct), InputDeviceInfo, "gamepad" } 
+ { "builtin", "Built-In", sizeof(InputDeviceInfo) / sizeof(InputDeviceInfoStruct), InputDeviceInfo, "gamepad" }
 };
 
-static InputInfoStruct InputInfo = 
+static InputInfoStruct InputInfo =
 {
  sizeof(PortInfo) / sizeof(InputPortInfoStruct),
  PortInfo
@@ -3472,6 +3664,55 @@ static Deinterlacer deint;
 
 const char *mednafen_core_str = MEDNAFEN_CORE_NAME;
 
+static bool scan_area(const uint8_t *data, unsigned size)
+{
+   for (unsigned i = 0; i < size; i++)
+      if (data[i] != 0xff)
+         return true;
+
+   return false;
+}
+
+static void adjust_save_ram()
+{
+   if (scan_area(libretro_save_buf, 512) &&
+         !scan_area(libretro_save_buf + 512, sizeof(libretro_save_buf) - 512))
+   {
+      libretro_save_size = 512;
+      if (log_cb)
+         log_cb(RETRO_LOG_INFO, "Detecting EEprom 8kbit\n");
+   }
+   else if (scan_area(libretro_save_buf, 0x2000) &&
+         !scan_area(libretro_save_buf + 0x2000, sizeof(libretro_save_buf) - 0x2000))
+   {
+      libretro_save_size = 0x2000;
+      if (log_cb)
+         log_cb(RETRO_LOG_INFO, "Detecting EEprom 64kbit\n");
+   }
+
+   else if (scan_area(libretro_save_buf, 0x10000) &&
+         !scan_area(libretro_save_buf + 0x10000, sizeof(libretro_save_buf) - 0x10000))
+   {
+      libretro_save_size = 0x10000;
+      if (log_cb)
+         log_cb(RETRO_LOG_INFO, "Detecting Flash 512kbit\n");
+   }
+   else if (scan_area(libretro_save_buf, 0x20000) &&
+         !scan_area(libretro_save_buf + 0x20000, sizeof(libretro_save_buf) - 0x20000))
+   {
+      libretro_save_size = 0x20000;
+      if (log_cb)
+         log_cb(RETRO_LOG_INFO, "Detecting Flash 1Mbit\n");
+   }
+   else if (log_cb)
+      log_cb(RETRO_LOG_INFO, "Did not detect any particular SRAM type.\n");
+
+   /*if (libretro_save_size == 512 || libretro_save_size == 0x2000)
+      eepromData = libretro_save_buf;
+   else if (libretro_save_size == 0x10000 || libretro_save_size == 0x20000)
+      flashSaveMemory = libretro_save_buf;*/
+}
+
 static void check_system_specs(void)
 {
    unsigned level = 0;
@@ -3480,10 +3721,11 @@ static void check_system_specs(void)
 
 void retro_init(void)
 {
+   memset(libretro_save_buf, 0xFF, sizeof(libretro_save_buf));
    struct retro_log_callback log;
    if (environ_cb(RETRO_ENVIRONMENT_GET_LOG_INTERFACE, &log))
       log_cb = log.log;
-   else 
+   else
       log_cb = NULL;
 
    MDFNI_InitializeModule();
@@ -3509,25 +3751,25 @@ void retro_init(void)
          log_cb(RETRO_LOG_WARN, "System directory is not defined. Fallback on using same dir as ROM for system directory later ...\n");
       failed_init = true;
    }
-   
+
    if (environ_cb(RETRO_ENVIRONMENT_GET_SAVE_DIRECTORY, &dir) && dir)
    {
-	  // If save directory is defined use it, otherwise use system directory
+      // If save directory is defined use it, otherwise use system directory
       retro_save_directory = *dir ? dir : retro_base_directory;
       // Make sure that we don't have any lingering slashes, etc, as they break Windows.
       size_t last = retro_save_directory.find_last_not_of("/\\");
       if (last != std::string::npos)
          last++;
 
-      retro_save_directory = retro_save_directory.substr(0, last);      
+      retro_save_directory = retro_save_directory.substr(0, last);
    }
    else
    {
       /* TODO: Add proper fallback */
       if (log_cb)
          log_cb(RETRO_LOG_WARN, "Save directory is not defined. Fallback on using SYSTEM directory ...\n");
-	  retro_save_directory = retro_base_directory;
-   }      
+      retro_save_directory = retro_base_directory;
+   }
 
 #if defined(WANT_16BPP) && defined(FRONTEND_SUPPORTS_RGB565)
    enum retro_pixel_format rgb565 = RETRO_PIXEL_FORMAT_RGB565;
@@ -3563,18 +3805,28 @@ static void set_volume (uint32_t *ptr, unsigned number)
    }
 }
 
-static void check_variables(void)
+static void check_variables(bool startup)
 {
    struct retro_variable var = {0};
 
    var.key = "gba_hle";
 
-   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value && startup)
    {
       if (strcmp(var.value, "enabled") == 0)
          setting_gba_hle = 1;
       else if (strcmp(var.value, "disabled") == 0)
          setting_gba_hle = 0;
+   }
+
+   var.key = "gba_use_mednafen_save_method";
+
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value && startup)
+   {
+      if (strcmp(var.value, "mednafen") == 0)
+         use_mednafen_save_method = true;
+      else if (strcmp(var.value, "libretro") == 0)
+         use_mednafen_save_method = false;
    }
 }
 
@@ -3630,25 +3882,24 @@ bool retro_load_game(const struct retro_game_info *info)
 
    set_basename(info->path);
 
-   check_variables();
+   check_variables(true);
 
-   game = MDFNI_LoadGame(MEDNAFEN_CORE_NAME_MODULE, info->path);
+   MDFN_printf("Loading %s\n", info->path);
+   game = MDFNI_LoadGame(MEDNAFEN_CORE_NAME_MODULE, (const uint8_t *)info->data, info->size);
    if (!game)
       return false;
 
    MDFN_PixelFormat pix_fmt(MDFN_COLORSPACE_RGB, 16, 8, 0, 24);
    memset(&last_pixel_format, 0, sizeof(MDFN_PixelFormat));
-   
+
    surf = new MDFN_Surface(NULL, FB_WIDTH, FB_HEIGHT, FB_WIDTH, pix_fmt);
 
 #ifdef NEED_DEINTERLACER
-	PrevInterlaced = false;
-	deint.ClearState();
+   PrevInterlaced = false;
+   deint.ClearState();
 #endif
 
    hookup_ports(true);
-
-   check_variables();
 
    struct retro_memory_descriptor descs[7];
    struct retro_memory_map retromap;
@@ -3747,7 +3998,6 @@ static void update_input(void)
 
 static uint64_t video_frames, audio_frames;
 
-
 void retro_run()
 {
    input_poll_cb();
@@ -3826,7 +4076,7 @@ void retro_run()
 
    bool updated = false;
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &updated) && updated)
-      check_variables();
+     check_variables(false);
 }
 
 void retro_get_system_info(struct retro_system_info *info)
@@ -3837,7 +4087,7 @@ void retro_get_system_info(struct retro_system_info *info)
 #define GIT_VERSION ""
 #endif
    info->library_version  = MEDNAFEN_CORE_VERSION GIT_VERSION;
-   info->need_fullpath    = true;
+   info->need_fullpath    = false;
    info->valid_extensions = MEDNAFEN_CORE_EXTENSIONS;
    info->block_extract    = false;
 }
@@ -3887,7 +4137,8 @@ void retro_set_environment(retro_environment_t cb)
    environ_cb = cb;
 
    static const struct retro_variable vars[] = {
-      { "gba_hle", "HLE bios emulation; enabled|disabled" },
+      { "gba_hle", "HLE bios emulation (Restart); enabled|disabled" },
+      { "gba_use_mednafen_save_method", "Save method (Restart); mednafen|libretro" },
       { NULL, NULL },
    };
    cb(RETRO_ENVIRONMENT_SET_VARIABLES, (void*)vars);
@@ -3972,13 +4223,20 @@ bool retro_unserialize(const void *data, size_t size)
    return MDFNSS_LoadSM(&st, 0, 0);
 }
 
-void *retro_get_memory_data(unsigned)
+void *retro_get_memory_data(unsigned type)
 {
+   if (type == RETRO_MEMORY_SAVE_RAM)
+      if (!use_mednafen_save_method)
+         return libretro_save_buf;
+
    return NULL;
 }
 
-size_t retro_get_memory_size(unsigned)
+size_t retro_get_memory_size(unsigned type)
 {
+   if (type == RETRO_MEMORY_SAVE_RAM)
+      if (!use_mednafen_save_method)
+         return libretro_save_size;
    return 0;
 }
 
@@ -4014,17 +4272,17 @@ std::string MDFN_MakeFName(MakeFName_Type type, int id1, const char *cd1)
          ret = retro_save_directory +slash + retro_base_name +
             std::string(".") +
 #ifndef _XBOX
-	    md5_context::asciistr(MDFNGameInfo->MD5, 0) + std::string(".") +
+         md5_context::asciistr(MDFNGameInfo->MD5, 0) + std::string(".") +
 #endif
             std::string(cd1);
          break;
       case MDFNMKF_FIRMWARE:
          ret = retro_base_directory + slash + std::string(cd1);
 #ifdef _WIN32
-   sanitize_path(ret); // Because Windows path handling is mongoloid.
+         sanitize_path(ret); // Because Windows path handling is mongoloid.
 #endif
          break;
-      default:	  
+      default:
          break;
    }
 
@@ -4042,7 +4300,7 @@ void MDFND_DispMessage(unsigned char *str)
 void MDFND_Message(const char *str)
 {
    if (log_cb)
-      log_cb(RETRO_LOG_INFO, "%s\n", str);
+      log_cb(RETRO_LOG_INFO, "%s", str);
 }
 
 void MDFND_MidSync(const EmulateSpecStruct *)
@@ -4059,41 +4317,6 @@ void MDFND_PrintError(const char* err)
       log_cb(RETRO_LOG_ERROR, "%s\n", err);
 }
 
-MDFNGI *MDFNGameInfo = NULL;
-
-#if defined(WANT_NES_EMU)
-extern MDFNGI EmulatedNES;
-#define MDFNGI_CORE &EmulatedNES
-#elif defined WANT_SNES_EMU
-extern MDFNGI EmulatedSNES;
-#define MDFNGI_CORE &EmulatedSNES
-extern MDFNGI EmulatedGB;
-#elif defined WANT_GB_EMU
-#define MDFNGI_CORE &EmulatedGB
-#elif defined WANT_GBA_EMU
-extern MDFNGI EmulatedGBA;
-#define MDFNGI_CORE &EmulatedGBA
-#elif defined WANT_PCE_EMU
-extern MDFNGI EmulatedPCE;
-#define MDFNGI_CORE &EmulatedPCE
-#elif defined WANT_LYNX_EMU
-extern MDFNGI EmulatedLynx;
-#define MDFNGI_CORE &EmulatedLynx
-#elif defined WANT_MD_EMU
-extern MDFNGI EmulatedMD;
-#define MDFNGI_CORE &EmulatedMD
-#elif defined WANT_PCFX_EMU
-extern MDFNGI EmulatedPCFX;
-#define MDFNGI_CORE &EmulatedPCFX
-#elif defined WANT_SMS_EMU
-extern MDFNGI EmulatedSMS;
-#define MDFNGI_CORE &EmulatedSMS
-#elif defined(WANT_SMS_EMU) && defined(WANT_GG_EMU)
-extern MDFNGI EmulatedGG;
-#define MDFNGI_CORE &EmulatedGG
-#endif
-
-
 /* forward declarations */
 extern void MDFND_DispMessage(unsigned char *str);
 
@@ -4101,7 +4324,7 @@ void MDFN_DispMessage(const char *format, ...)
 {
  va_list ap;
  va_start(ap,format);
- char *msg = new char[4096]; 
+ char *msg = new char[4096];
 
  vsnprintf(msg, 4096, format,ap);
  va_end(ap);
@@ -4115,55 +4338,26 @@ void MDFN_ResetMessages(void)
 }
 
 
-MDFNGI *MDFNI_LoadGame(const char *force_module, const char *name)
+MDFNGI *MDFNI_LoadGame(const char *force_module, const uint8_t *data, size_t size)
 {
-   MDFNFILE GameFile;
-	std::vector<FileExtensionSpecStruct> valid_iae;
-   MDFNGameInfo = MDFNGI_CORE;
+   MDFNGameInfo = &EmulatedGBA;
+   MDFN_indent(1);
+   MDFN_printf(_("Using module: gba\n\n"));
+   MDFN_indent(1);
 
-	MDFN_printf(_("Loading %s...\n"),name);
-
-	MDFN_indent(1);
-
-	// Construct a NULL-delimited list of known file extensions for MDFN_fopen()
-   const FileExtensionSpecStruct *curexts = KnownExtensions;
-
-   while(curexts->extension && curexts->description)
+   if(Load(data, size) <= 0)
    {
-      valid_iae.push_back(*curexts);
-      curexts++;
-   }
-
-	if(!GameFile.Open(name, &valid_iae[0], _("game")))
-   {
-      MDFNGameInfo = NULL;
-      return 0;
-   }
-
-	MDFN_printf(_("Using module: gba\n\n"));
-	MDFN_indent(1);
-
-	//
-	// Load per-game settings
-	//
-	// Maybe we should make a "pgcfg" subdir, and automatically load all files in it?
-	// End load per-game settings
-	//
-
-   if(Load(name, &GameFile) <= 0)
-   {
-      GameFile.Close();
       MDFN_indent(-2);
       MDFNGameInfo = NULL;
       return(0);
    }
 
-	MDFN_LoadGameCheats(NULL);
-	MDFNMP_InstallReadPatches();
+   MDFN_LoadGameCheats(NULL);
+   MDFNMP_InstallReadPatches();
 
-	MDFN_ResetMessages();	// Save state, status messages, etc.
+   MDFN_ResetMessages();   // Save state, status messages, etc.
 
-	MDFN_indent(-2);
+   MDFN_indent(-2);
 
    return(MDFNGameInfo);
 }
@@ -4189,7 +4383,7 @@ bool MDFNI_InitializeModule(void)
 
 int MDFNI_Initialize(const char *basedir)
 {
-	return(1);
+   return(1);
 }
 
 static int curindent = 0;

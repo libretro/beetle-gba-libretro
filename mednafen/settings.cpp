@@ -21,9 +21,7 @@
 #include <string>
 #include "settings.h"
 
-#if defined(WANT_GBA_EMU)
 uint32_t setting_gba_hle = 1;
-#endif
 
 bool MDFN_SaveSettings(const char *path)
 {
@@ -85,10 +83,8 @@ extern std::string retro_base_name;
 
 std::string MDFN_GetSettingS(const char *name)
 {
-#if defined(WANT_GBA_EMU)
    if (!strcmp("gba.bios", name))
       return setting_gba_hle ? std::string("") : std::string("gba_bios.bin");
-#endif
    /* FILESYS */
    if (!strcmp("filesys.path_firmware", name))
       return retro_base_directory;

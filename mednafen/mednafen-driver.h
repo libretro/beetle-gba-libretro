@@ -23,7 +23,7 @@ uint32 MDFND_GetTime(void);
 void MDFND_Sleep(uint32 ms);
 
 /* path = path of game/file to load.  returns NULL on failure. */
-MDFNGI *MDFNI_LoadGame(const char *force_module, const char *path);
+MDFNGI *MDFNI_LoadGame(const char *force_module, const uint8_t *data, size_t size);
 
 MDFNGI *MDFNI_LoadCD(const char *sysname, const char *devicename);
 

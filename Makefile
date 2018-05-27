@@ -1,5 +1,6 @@
 DEBUG = 0
 FRONTEND_SUPPORTS_RGB565 = 1
+TILED_RENDERING = 1
 
 CORE_DIR := .
 
@@ -24,7 +25,7 @@ NEED_BLIP = 1
 NEED_STEREO_SOUND = 1
 NEED_CRC32 = 1
 WANT_NEW_API = 1
-CORE_DEFINE := -DWANT_GBA_EMU
+CORE_DEFINE :=
 
 prefix := /usr
 libdir := $(prefix)/lib
@@ -209,6 +210,10 @@ else
    SHARED := -shared -Wl,--no-undefined -Wl,--version-script=link.T
    LDFLAGS += -static-libgcc -static-libstdc++ -lwinmm
    FLAGS += -DHAVE__MKDIR
+endif
+
+ifeq ($(TILED_RENDERING), 1)
+FLAGS += -DTILED_RENDERING
 endif
 
 include Makefile.common

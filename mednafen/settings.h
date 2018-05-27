@@ -3,9 +3,7 @@
 
 #include <string>
 
-#if defined(WANT_GBA_EMU)
 extern uint32_t setting_gba_hle;
-#endif
 
 bool MDFN_LoadSettings(const char *path, const char *section = NULL, bool override = false);
 bool MDFN_MergeSettings(const void*);

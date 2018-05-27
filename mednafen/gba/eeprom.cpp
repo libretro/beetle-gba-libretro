@@ -19,21 +19,36 @@
 #include "GBA.h"
 #include "eeprom.h"
 
+#include <mednafen/FileStream.h>
+
+
+#define EEPROM_IDLE           0
+#define EEPROM_READADDRESS    1
+#define EEPROM_READDATA       2
+#define EEPROM_READDATA2      3
+#define EEPROM_WRITEDATA      4
+
+extern uint8_t libretro_save_buf[0x20000 + 0x2000];
+extern bool use_mednafen_save_method;
 extern int cpuDmaCount;
 
-int eepromMode = EEPROM_IDLE;
-int eepromByte = 0;
-int eepromBits = 0;
-int eepromAddress = 0;
-uint8 eepromData[0x2000];
+static int eepromMode = EEPROM_IDLE;
+static int eepromByte = 0;
+static int eepromBits = 0;
+static int eepromAddress = 0;
+static uint8 *eepromData = libretro_save_buf + 0x20000;
 static uint8 eepromBuffer[16];
-bool eepromInUse = false;
-int eepromSize = 512;
-
+static bool eepromInUse = false;
+static int eepromSize = 512;
 #include "../state.h"
 
-SFORMAT eepromSaveData[] = 
+int EEPROM_StateAction(StateMem *sm, int load, int data_only)
 {
+ const bool prev_eepromInUse = eepromInUse;
+ const int prev_eepromSize = eepromSize;
+
+ SFORMAT eepromSaveData[] =
+ {
   SFVAR(eepromMode),
   SFVAR(eepromByte),
   SFVAR(eepromBits),
@@ -43,7 +58,24 @@ SFORMAT eepromSaveData[] =
   SFARRAYN(eepromData, 0x2000, "eepromData"),
   SFARRAYN(eepromBuffer, 16, "eepromBuffer"),
   SFEND
-};
+ };
+ int ret = MDFNSS_StateAction(sm, load, data_only, eepromSaveData, "EEPR");
+
+ if(load)
+ {
+  if(eepromSize != 512 && eepromSize != 0x2000)
+   eepromSize = 0x2000;
+
+  if(prev_eepromSize > eepromSize)
+   eepromSize = prev_eepromSize;
+
+  eepromInUse |= prev_eepromInUse;
+
+  //printf("InUse: %d\n", eepromInUse);
+ }
+
+ return(ret);
+}
 
 bool GBA_EEPROM_SaveFile(const char *filename)
 {
@@ -87,7 +119,14 @@ bool GBA_EEPROM_LoadFile(const char *filename)
 
 void eepromInit(void)
 {
-  memset(eepromData, 0xFF, sizeof(eepromData));
+  memset(eepromData, 0xFF, 0x2000);
+  memset(eepromBuffer, 0, sizeof(eepromBuffer));
+  eepromMode = EEPROM_IDLE;
+  eepromByte = 0;
+  eepromBits = 0;
+  eepromAddress = 0;
+  eepromInUse = false;
+  eepromSize = 512;
 }
 
 void eepromReset(void)
@@ -96,8 +135,6 @@ void eepromReset(void)
   eepromByte = 0;
   eepromBits = 0;
   eepromAddress = 0;
-  eepromInUse = false;
-  eepromSize = 512;
 }
 
 int eepromRead(uint32 /* address */)
@@ -122,7 +159,7 @@ int eepromRead(uint32 /* address */)
       int data = 0;
       int address = eepromAddress << 3;
       int mask = 1 << (7 - (eepromBits & 7));
-      data = (eepromData[address+eepromByte] & mask) ? 1 : 0;
+      data = (eepromData[(address + eepromByte) & 0x1FFF] & mask) ? 1 : 0;
       eepromBits++;
       if((eepromBits & 7) == 0)
         eepromByte++;
@@ -145,19 +182,18 @@ void eepromWrite(uint32 /* address */, uint8 value)
   case EEPROM_IDLE:
     eepromByte = 0;
     eepromBits = 1;
-    eepromBuffer[eepromByte] = bit;
+    eepromBuffer[eepromByte & 0xF] = bit;
     eepromMode = EEPROM_READADDRESS;
     break;
   case EEPROM_READADDRESS:
-    eepromBuffer[eepromByte] <<= 1;
-    eepromBuffer[eepromByte] |= bit;
+    eepromBuffer[eepromByte & 0xF] <<= 1;
+    eepromBuffer[eepromByte & 0xF] |= bit;
     eepromBits++;
     if((eepromBits & 7) == 0) {
       eepromByte++;
     }
     if(cpuDmaCount == 0x11 || cpuDmaCount == 0x51) {
       if(eepromBits == 0x11) {
-        eepromInUse = true;
         eepromSize = 0x2000;
         eepromAddress = ((eepromBuffer[0] & 0x3F) << 8) |
           ((eepromBuffer[1] & 0xFF));
@@ -174,7 +210,6 @@ void eepromWrite(uint32 /* address */, uint8 value)
       }
     } else {
       if(eepromBits == 9) {
-        eepromInUse = true;
         eepromAddress = (eepromBuffer[0] & 0x3F);
         if(!(eepromBuffer[0] & 0x40)) {
           eepromBuffer[0] = bit;
@@ -195,8 +230,8 @@ void eepromWrite(uint32 /* address */, uint8 value)
     eepromMode = EEPROM_IDLE;
     break;
   case EEPROM_WRITEDATA:
-    eepromBuffer[eepromByte] <<= 1;
-    eepromBuffer[eepromByte] |= bit;
+    eepromBuffer[eepromByte & 0xF] <<= 1;
+    eepromBuffer[eepromByte & 0xF] |= bit;
     eepromBits++;
     if((eepromBits & 7) == 0) {
       eepromByte++;
@@ -205,7 +240,7 @@ void eepromWrite(uint32 /* address */, uint8 value)
       eepromInUse = true;
       // write data;
       for(int i = 0; i < 8; i++) {
-        eepromData[(eepromAddress << 3) + i] = eepromBuffer[i];
+        eepromData[((eepromAddress << 3) + i) & 0x1FFF] = eepromBuffer[i];
       }
     } else if(eepromBits == 0x41) {
       eepromMode = EEPROM_IDLE;
