@@ -3,9 +3,6 @@
 #include "mednafen/git.h"
 #include "mednafen/general.h"
 #include "mednafen/md5.h"
-#ifdef NEED_DEINTERLACER
-#include "mednafen/video/Deinterlacer.h"
-#endif
 #include "libretro.h"
 
 static MDFNGI *game;
@@ -3646,11 +3643,6 @@ static void set_basename(const char *path)
    retro_base_name = retro_base_name.substr(0, retro_base_name.find_last_of('.'));
 }
 
-#ifdef NEED_DEINTERLACER
-static bool PrevInterlaced;
-static Deinterlacer deint;
-#endif
-
 #define MEDNAFEN_CORE_NAME_MODULE "gba"
 #define MEDNAFEN_CORE_NAME "Mednafen VBA-M"
 #define MEDNAFEN_CORE_VERSION "v0.9.36"
@@ -3898,11 +3890,6 @@ bool retro_load_game(const struct retro_game_info *info)
 
    surf = new MDFN_Surface(NULL, FB_WIDTH, FB_HEIGHT, FB_WIDTH, pix_fmt);
 
-#ifdef NEED_DEINTERLACER
-   PrevInterlaced = false;
-   deint.ClearState();
-#endif
-
    hookup_ports(true);
 
    struct retro_memory_descriptor descs[7];
@@ -4038,23 +4025,6 @@ void retro_run()
    }
 
    Emulate(&spec);
-
-#ifdef NEED_DEINTERLACER
-   if (spec.InterlaceOn)
-   {
-      if (!PrevInterlaced)
-         deint.ClearState();
-
-      deint.Process(spec.surface, spec.DisplayRect, spec.LineWidths, spec.InterlaceField);
-
-      PrevInterlaced = true;
-
-      spec.InterlaceOn = false;
-      spec.InterlaceField = 0;
-   }
-   else
-      PrevInterlaced = false;
-#endif
 
    int16 *const SoundBuf = spec.SoundBuf + spec.SoundBufSizeALMS * 2;
    int32 SoundBufSize = spec.SoundBufSize - spec.SoundBufSizeALMS;
