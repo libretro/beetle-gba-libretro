@@ -87,7 +87,9 @@ bool use_mednafen_save_method = false;
 
 #include "mednafen/FileStream.h"
 
+#ifdef WANT_CRC32
 #include "scrc32.h"
+#endif
 
 static bool CPUInit(const std::string bios_fn) MDFN_COLD;
 static void CPUReset(void) MDFN_COLD;
@@ -761,7 +763,9 @@ static int Load(const uint8_t *data, size_t size)
    md5.finish(MDFNGameInfo->MD5);
 
    MDFN_printf(_("ROM:       %dKiB\n"), (size + 1023) / 1024);
+#ifdef WANT_CRC32
    MDFN_printf(_("ROM CRC32: 0x%08x\n"), (unsigned int)crc32(0, data, size));
+#endif
    MDFN_printf(_("ROM MD5:   0x%s\n"), md5_context::asciistr(MDFNGameInfo->MD5, 0).c_str());
 
    uint16 *temp = (uint16 *)(rom+((size+1)&~1));
