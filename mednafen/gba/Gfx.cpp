@@ -65,8 +65,8 @@ union u8h
 {
   struct
   {
-    /* 0*/  unsigned lo:4;
-    /* 4*/  unsigned hi:4;
+    /* 0*/  unsigned char lo:4;
+    /* 4*/  unsigned char hi:4;
   } __attribute__ ((packed));
   uint8 val;
 };
