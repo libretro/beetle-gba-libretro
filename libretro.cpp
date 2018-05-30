@@ -851,12 +851,6 @@ static int Load(const uint8_t *data, size_t size)
     GBA_EEPROM_LoadFile(MDFN_MakeFName(MDFNMKF_SAV, 0, "eep").c_str());
   }
 
-  //if(!LoadCPalette(NULL, &CustomColorMap, 32768))
-  //{
-  // CPUCleanUp();
-  // return(0);
-  //}
-
  return(1);
 }
 
@@ -1376,7 +1370,6 @@ static void CPUCompareVCOUNT()
       if (layerEnableDelay==1)
           layerEnable = layerSettings & DISPCNT;
   }
-
 }
 
 #define doDMA(s, d, _si, _di, _c, _transfer32)	\
@@ -3724,8 +3717,6 @@ void retro_init(void)
    else
       log_cb = NULL;
 
-   MDFNI_InitializeModule();
-
    const char *dir = NULL;
 
    if (environ_cb(RETRO_ENVIRONMENT_GET_SYSTEM_DIRECTORY, &dir) && dir)
@@ -3737,8 +3728,6 @@ void retro_init(void)
          last++;
 
       retro_base_directory = retro_base_directory.substr(0, last);
-
-      MDFNI_Initialize(retro_base_directory.c_str());
    }
    else
    {
@@ -3789,16 +3778,6 @@ void retro_reset(void)
 bool retro_load_game_special(unsigned, const struct retro_game_info *, size_t)
 {
    return false;
-}
-
-static void set_volume (uint32_t *ptr, unsigned number)
-{
-   switch(number)
-   {
-      default:
-         *ptr = number;
-         break;
-   }
 }
 
 static void check_variables(bool startup)
@@ -4277,14 +4256,6 @@ void MDFND_Message(const char *str)
       log_cb(RETRO_LOG_INFO, "%s", str);
 }
 
-void MDFND_MidSync(const EmulateSpecStruct *)
-{}
-
-void MDFN_MidLineUpdate(EmulateSpecStruct *espec, int y)
-{
- //MDFND_MidLineUpdate(espec, y);
-}
-
 void MDFND_PrintError(const char* err)
 {
    if (log_cb)
@@ -4310,7 +4281,6 @@ void MDFN_ResetMessages(void)
 {
  MDFND_DispMessage(NULL);
 }
-
 
 MDFNGI *MDFNI_LoadGame(const char *force_module, const uint8_t *data, size_t size)
 {
@@ -4348,16 +4318,6 @@ void MDFNI_CloseGame(void)
    MDFNMP_Kill();
 
    MDFNGameInfo = NULL;
-}
-
-bool MDFNI_InitializeModule(void)
-{
- return(1);
-}
-
-int MDFNI_Initialize(const char *basedir)
-{
-   return(1);
 }
 
 static int curindent = 0;
