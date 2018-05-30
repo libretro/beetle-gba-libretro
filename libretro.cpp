@@ -3235,7 +3235,6 @@ updateLoop:
                   dest[x + 1] = cm[(uint16)src[x + 1]];
                 }
               }
-              MDFN_MidLineUpdate(espec, VCOUNT);
             }
             // entering H-Blank
             DISPSTAT |= 2;
@@ -4004,12 +4003,6 @@ void retro_run()
    }
 
    Emulate(&spec);
-
-   int16 *const SoundBuf = spec.SoundBuf + spec.SoundBufSizeALMS * 2;
-   int32 SoundBufSize = spec.SoundBufSize - spec.SoundBufSizeALMS;
-   const int32 SoundBufMaxSize = spec.SoundBufMaxSize - spec.SoundBufSizeALMS;
-
-   spec.SoundBufSize = spec.SoundBufSizeALMS + SoundBufSize;
 
    unsigned width  = spec.DisplayRect.w;
    unsigned height = spec.DisplayRect.h;
