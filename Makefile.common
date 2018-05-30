@@ -5,7 +5,7 @@ LIBRETRO_COMMON_DIR := $(CORE_DIR)/libretro-common
 MEDNAFEN_DIR := $(CORE_DIR)/mednafen
 CORE_EMU_DIR := $(MEDNAFEN_DIR)/gba
 
-INCFLAGS := -I$(CORE_DIR) -I$(CORE_EMU_DIR)/src/lib -I$(MEDNAFEN_DIR) -I$(MEDNAFEN_DIR)/include -I$(MEDNAFEN_DIR)/intl -I$(MEDNAFEN_DIR)/hw_sound -I$(MEDNAFEN_DIR)/hw_cpu -I$(MEDNAFEN_DIR)/hw_misc -I$(LIBRETRO_COMMON_DIR)/include
+INCFLAGS := -I$(CORE_DIR) -I$(MEDNAFEN_DIR) -I$(MEDNAFEN_DIR)/include -I$(MEDNAFEN_DIR)/hw_sound -I$(LIBRETRO_COMMON_DIR)/include
 
 ifneq ($(HAVE_GRIFFIN),1)
 SOURCES_CXX += \
@@ -93,7 +93,6 @@ SOURCES_CXX += \
 	$(MEDNAFEN_DIR)/file.cpp \
 	$(MEDNAFEN_DIR)/error.cpp \
 	$(MEDNAFEN_DIR)/sound/Stereo_Buffer.cpp \
-	$(MEDNAFEN_DIR)/video/Deinterlacer.cpp \
 	$(MEDNAFEN_DIR)/video/surface.cpp \
 	$(MEDNAFEN_DIR)/endian.cpp \
 	$(CORE_DIR)/libretro.cpp

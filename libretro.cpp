@@ -3,9 +3,6 @@
 #include "mednafen/git.h"
 #include "mednafen/general.h"
 #include "mednafen/md5.h"
-#ifdef NEED_DEINTERLACER
-#include "mednafen/video/Deinterlacer.h"
-#endif
 #include "libretro.h"
 
 static MDFNGI *game;
@@ -87,7 +84,9 @@ bool use_mednafen_save_method = false;
 
 #include "mednafen/FileStream.h"
 
+#ifdef WANT_CRC32
 #include "scrc32.h"
+#endif
 
 static bool CPUInit(const std::string bios_fn) MDFN_COLD;
 static void CPUReset(void) MDFN_COLD;
@@ -761,7 +760,9 @@ static int Load(const uint8_t *data, size_t size)
    md5.finish(MDFNGameInfo->MD5);
 
    MDFN_printf(_("ROM:       %dKiB\n"), (size + 1023) / 1024);
+#ifdef WANT_CRC32
    MDFN_printf(_("ROM CRC32: 0x%08x\n"), (unsigned int)crc32(0, data, size));
+#endif
    MDFN_printf(_("ROM MD5:   0x%s\n"), md5_context::asciistr(MDFNGameInfo->MD5, 0).c_str());
 
    uint16 *temp = (uint16 *)(rom+((size+1)&~1));
@@ -849,12 +850,6 @@ static int Load(const uint8_t *data, size_t size)
    if(cpuEEPROMEnabled)
     GBA_EEPROM_LoadFile(MDFN_MakeFName(MDFNMKF_SAV, 0, "eep").c_str());
   }
-
-  //if(!LoadCPalette(NULL, &CustomColorMap, 32768))
-  //{
-  // CPUCleanUp();
-  // return(0);
-  //}
 
  return(1);
 }
@@ -1375,7 +1370,6 @@ static void CPUCompareVCOUNT()
       if (layerEnableDelay==1)
           layerEnable = layerSettings & DISPCNT;
   }
-
 }
 
 #define doDMA(s, d, _si, _di, _c, _transfer32)	\
@@ -3241,7 +3235,6 @@ updateLoop:
                   dest[x + 1] = cm[(uint16)src[x + 1]];
                 }
               }
-              MDFN_MidLineUpdate(espec, VCOUNT);
             }
             // entering H-Blank
             DISPSTAT |= 2;
@@ -3642,11 +3635,6 @@ static void set_basename(const char *path)
    retro_base_name = retro_base_name.substr(0, retro_base_name.find_last_of('.'));
 }
 
-#ifdef NEED_DEINTERLACER
-static bool PrevInterlaced;
-static Deinterlacer deint;
-#endif
-
 #define MEDNAFEN_CORE_NAME_MODULE "gba"
 #define MEDNAFEN_CORE_NAME "Mednafen VBA-M"
 #define MEDNAFEN_CORE_VERSION "v0.9.36"
@@ -3728,8 +3716,6 @@ void retro_init(void)
    else
       log_cb = NULL;
 
-   MDFNI_InitializeModule();
-
    const char *dir = NULL;
 
    if (environ_cb(RETRO_ENVIRONMENT_GET_SYSTEM_DIRECTORY, &dir) && dir)
@@ -3741,8 +3727,6 @@ void retro_init(void)
          last++;
 
       retro_base_directory = retro_base_directory.substr(0, last);
-
-      MDFNI_Initialize(retro_base_directory.c_str());
    }
    else
    {
@@ -3793,16 +3777,6 @@ void retro_reset(void)
 bool retro_load_game_special(unsigned, const struct retro_game_info *, size_t)
 {
    return false;
-}
-
-static void set_volume (uint32_t *ptr, unsigned number)
-{
-   switch(number)
-   {
-      default:
-         *ptr = number;
-         break;
-   }
 }
 
 static void check_variables(bool startup)
@@ -3893,11 +3867,6 @@ bool retro_load_game(const struct retro_game_info *info)
    memset(&last_pixel_format, 0, sizeof(MDFN_PixelFormat));
 
    surf = new MDFN_Surface(NULL, FB_WIDTH, FB_HEIGHT, FB_WIDTH, pix_fmt);
-
-#ifdef NEED_DEINTERLACER
-   PrevInterlaced = false;
-   deint.ClearState();
-#endif
 
    hookup_ports(true);
 
@@ -3996,8 +3965,6 @@ static void update_input(void)
 #endif
 }
 
-static uint64_t video_frames, audio_frames;
-
 void retro_run()
 {
    input_poll_cb();
@@ -4035,29 +4002,6 @@ void retro_run()
 
    Emulate(&spec);
 
-#ifdef NEED_DEINTERLACER
-   if (spec.InterlaceOn)
-   {
-      if (!PrevInterlaced)
-         deint.ClearState();
-
-      deint.Process(spec.surface, spec.DisplayRect, spec.LineWidths, spec.InterlaceField);
-
-      PrevInterlaced = true;
-
-      spec.InterlaceOn = false;
-      spec.InterlaceField = 0;
-   }
-   else
-      PrevInterlaced = false;
-#endif
-
-   int16 *const SoundBuf = spec.SoundBuf + spec.SoundBufSizeALMS * 2;
-   int32 SoundBufSize = spec.SoundBufSize - spec.SoundBufSizeALMS;
-   const int32 SoundBufMaxSize = spec.SoundBufMaxSize - spec.SoundBufSizeALMS;
-
-   spec.SoundBufSize = spec.SoundBufSizeALMS + SoundBufSize;
-
    unsigned width  = spec.DisplayRect.w;
    unsigned height = spec.DisplayRect.h;
 
@@ -4068,9 +4012,6 @@ void retro_run()
    const uint16_t *pix = surf->pixels16;
    video_cb(pix, width, height, FB_WIDTH << 1);
 #endif
-
-   video_frames++;
-   audio_frames += spec.SoundBufSize;
 
    audio_batch_cb(spec.SoundBuf, spec.SoundBufSize);
 
@@ -4108,14 +4049,6 @@ void retro_deinit()
 {
    delete surf;
    surf = NULL;
-
-   if (log_cb)
-   {
-      log_cb(RETRO_LOG_INFO, "[%s]: Samples / Frame: %.5f\n",
-            mednafen_core_str, (double)audio_frames / video_frames);
-      log_cb(RETRO_LOG_INFO, "[%s]: Estimated FPS: %.5f\n",
-            mednafen_core_str, (double)video_frames * 44100 / audio_frames);
-   }
 }
 
 unsigned retro_get_region(void)
@@ -4303,14 +4236,6 @@ void MDFND_Message(const char *str)
       log_cb(RETRO_LOG_INFO, "%s", str);
 }
 
-void MDFND_MidSync(const EmulateSpecStruct *)
-{}
-
-void MDFN_MidLineUpdate(EmulateSpecStruct *espec, int y)
-{
- //MDFND_MidLineUpdate(espec, y);
-}
-
 void MDFND_PrintError(const char* err)
 {
    if (log_cb)
@@ -4336,7 +4261,6 @@ void MDFN_ResetMessages(void)
 {
  MDFND_DispMessage(NULL);
 }
-
 
 MDFNGI *MDFNI_LoadGame(const char *force_module, const uint8_t *data, size_t size)
 {
@@ -4374,16 +4298,6 @@ void MDFNI_CloseGame(void)
    MDFNMP_Kill();
 
    MDFNGameInfo = NULL;
-}
-
-bool MDFNI_InitializeModule(void)
-{
- return(1);
-}
-
-int MDFNI_Initialize(const char *basedir)
-{
-   return(1);
 }
 
 static int curindent = 0;
