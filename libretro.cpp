@@ -3965,8 +3965,6 @@ static void update_input(void)
 #endif
 }
 
-static uint64_t video_frames, audio_frames;
-
 void retro_run()
 {
    input_poll_cb();
@@ -4015,9 +4013,6 @@ void retro_run()
    video_cb(pix, width, height, FB_WIDTH << 1);
 #endif
 
-   video_frames++;
-   audio_frames += spec.SoundBufSize;
-
    audio_batch_cb(spec.SoundBuf, spec.SoundBufSize);
 
    bool updated = false;
@@ -4054,14 +4049,6 @@ void retro_deinit()
 {
    delete surf;
    surf = NULL;
-
-   if (log_cb)
-   {
-      log_cb(RETRO_LOG_INFO, "[%s]: Samples / Frame: %.5f\n",
-            mednafen_core_str, (double)audio_frames / video_frames);
-      log_cb(RETRO_LOG_INFO, "[%s]: Estimated FPS: %.5f\n",
-            mednafen_core_str, (double)video_frames * 44100 / audio_frames);
-   }
 }
 
 unsigned retro_get_region(void)
