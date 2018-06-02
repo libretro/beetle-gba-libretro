@@ -17,10 +17,6 @@ static retro_audio_sample_batch_t audio_batch_cb;
 static retro_environment_t environ_cb;
 static retro_input_poll_t input_poll_cb;
 static retro_input_state_t input_state_cb;
-
-static retro_rumble_interface rumble;
-
-static bool overscan;
 static double last_sound_rate;
 static MDFN_PixelFormat last_pixel_format;
 
@@ -3799,9 +3795,6 @@ bool retro_load_game(const struct retro_game_info *info)
       return false;
    }
 #endif
-
-   overscan = false;
-   environ_cb(RETRO_ENVIRONMENT_GET_OVERSCAN, &overscan);
 
    set_basename(info->path);
 
