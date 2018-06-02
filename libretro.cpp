@@ -622,57 +622,6 @@ static void CloseGame(void)
  CPUCleanUp();
 }
 
-static bool LoadCPalette(const char *syspalname, uint8 **ptr, uint32 num_entries) MDFN_COLD;
-static bool LoadCPalette(const char *syspalname, uint8 **ptr, uint32 num_entries)
-{
- std::string colormap_fn = MDFN_MakeFName(MDFNMKF_PALETTE, 0, syspalname).c_str();
-
- MDFN_printf(_("Loading custom palette from \"%s\"...\n"),  colormap_fn.c_str());
- MDFN_indent(1);
-
- *ptr = NULL;
- try
- {
-  FileStream fp(colormap_fn.c_str(), FileStream::MODE_READ);
-
-  if(!(*ptr = (uint8 *)malloc(num_entries * 3)))
-  {
-   MDFN_indent(-1);
-   return(false);
-  }
-
-  fp.read(*ptr, num_entries * 3);
- }
- catch(MDFN_Error &e)
- {
-  if(*ptr)
-  {
-   free(*ptr);
-   *ptr = NULL;
-  }
-
-  MDFN_printf(_("Error: %s\n"), e.what());
-  MDFN_indent(-1);
-  return(e.GetErrno() == ENOENT);        // Return fatal error if it's an error other than the file not being found.
- }
- catch(std::exception &e)
- {
-  if(*ptr)
-  {
-   free(*ptr);
-   *ptr = NULL;
-  }
-
-  MDFN_printf(_("Error: %s\n"), e.what());
-  MDFN_indent(-1);
-  return(false);
- }
-
- MDFN_indent(-1);
-
- return(true);
-}
-
 static void RedoColorMap(const MDFN_PixelFormat &format) MDFN_COLD;
 static void RedoColorMap(const MDFN_PixelFormat &format)
 {
