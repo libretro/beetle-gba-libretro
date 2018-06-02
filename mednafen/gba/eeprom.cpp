@@ -19,9 +19,6 @@
 #include "GBA.h"
 #include "eeprom.h"
 
-#include <mednafen/FileStream.h>
-
-
 #define EEPROM_IDLE           0
 #define EEPROM_READADDRESS    1
 #define EEPROM_READDATA       2

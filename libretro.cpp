@@ -78,8 +78,6 @@ bool use_mednafen_save_method = false;
 #include <string.h>
 #include <errno.h>
 
-#include "mednafen/FileStream.h"
-
 #ifdef WANT_CRC32
 #include "scrc32.h"
 #endif
