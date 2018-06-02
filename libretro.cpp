@@ -409,7 +409,7 @@ int StateAction(StateMem *sm, int load, int data_only)
   SFEND
  };
 
- ret &= MDFNSS_StateAction(sm, load, data_only, StateRegs, "MAIN");
+ ret &= MDFNSS_StateAction(sm, load, data_only, StateRegs, "MAIN", false);
 
  SFORMAT RAMState[] =
  {
@@ -422,7 +422,7 @@ int StateAction(StateMem *sm, int load, int data_only)
   SFEND
  };
 
- ret &= MDFNSS_StateAction(sm, load, data_only, RAMState, "RAM");
+ ret &= MDFNSS_StateAction(sm, load, data_only, RAMState, "RAM", false);
 
  if(cpuEEPROMEnabled)
   ret &= EEPROM_StateAction(sm, load, data_only);
@@ -432,7 +432,7 @@ int StateAction(StateMem *sm, int load, int data_only)
  if(GBA_RTC)
   ret &= GBA_RTC->StateAction(sm, load, data_only);
 
- ret &= MDFNSS_StateAction(sm, load, data_only, Joy_StateRegs, "JOY");
+ ret &= MDFNSS_StateAction(sm, load, data_only, Joy_StateRegs, "JOY", false);
  ret &= MDFNGBASOUND_StateAction(sm, load, data_only);
 
  if(load)
@@ -679,7 +679,6 @@ static int Load(const uint8_t *data, size_t size)
    free(rom);
    return(0);
   }
-
 
   {
    uint8 *whereToLoad;
@@ -3565,7 +3564,6 @@ MDFNGI EmulatedGBA =
  2,	// Number of output sound channels
 };
 
-
 static void set_basename(const char *path)
 {
    const char *base = strrchr(path, '/');
@@ -3594,8 +3592,6 @@ static void set_basename(const char *path)
 #define FB_HEIGHT 160
 
 #define FB_MAX_HEIGHT FB_HEIGHT
-
-const char *mednafen_core_str = MEDNAFEN_CORE_NAME;
 
 static bool scan_area(const uint8_t *data, unsigned size)
 {
@@ -3872,10 +3868,6 @@ void retro_unload_game()
    MDFNI_CloseGame();
 }
 
-
-
-// Hardcoded for PSX. No reason to parse lots of structures ...
-// See mednafen/psx/input/gamepad.cpp
 static void update_input(void)
 {
    input_buf = 0;
@@ -4112,6 +4104,7 @@ size_t retro_get_memory_size(unsigned type)
    if (type == RETRO_MEMORY_SAVE_RAM)
       if (!use_mednafen_save_method)
          return libretro_save_size;
+
    return 0;
 }
 

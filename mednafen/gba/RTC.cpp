@@ -212,7 +212,7 @@ int RTC::StateAction(StateMem *sm, int load, int data_only)
  };
 
 
- int ret = MDFNSS_StateAction(sm, load, data_only, StateRegs, "RTC");
+ int ret = MDFNSS_StateAction(sm, load, data_only, StateRegs, "RTC", false);
 
  if(load)
  {

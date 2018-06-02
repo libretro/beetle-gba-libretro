@@ -99,7 +99,7 @@ int MDFNGBASOUND_StateAction(StateMem *sm, int load, int data_only)
   SFEND
  };
 
- int ret = MDFNSS_StateAction(sm, load, data_only, StateRegs, "SND");
+ int ret = MDFNSS_StateAction(sm, load, data_only, StateRegs, "SND", false);
  if(ret && load)
  {
   gba_apu.reset( gba_apu.mode_agb, true );

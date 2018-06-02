@@ -59,7 +59,7 @@ int EEPROM_StateAction(StateMem *sm, int load, int data_only)
   SFARRAYN(eepromBuffer, 16, "eepromBuffer"),
   SFEND
  };
- int ret = MDFNSS_StateAction(sm, load, data_only, eepromSaveData, "EEPR");
+ int ret = MDFNSS_StateAction(sm, load, data_only, eepromSaveData, "EEPR", false);
 
  if(load)
  {
