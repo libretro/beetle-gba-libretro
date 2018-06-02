@@ -54,7 +54,7 @@ int GBA_Flash_StateAction(StateMem *sm, int load, int data_only)
    SFEND
  };
 
- int ret = MDFNSS_StateAction(sm, load, data_only, flashSaveData, "FLSH");
+ int ret = MDFNSS_StateAction(sm, load, data_only, flashSaveData, "FLSH", false);
 
  if(load)
  {

@@ -19,9 +19,6 @@
 #include "GBA.h"
 #include "eeprom.h"
 
-#include <mednafen/FileStream.h>
-
-
 #define EEPROM_IDLE           0
 #define EEPROM_READADDRESS    1
 #define EEPROM_READDATA       2
@@ -59,7 +56,7 @@ int EEPROM_StateAction(StateMem *sm, int load, int data_only)
   SFARRAYN(eepromBuffer, 16, "eepromBuffer"),
   SFEND
  };
- int ret = MDFNSS_StateAction(sm, load, data_only, eepromSaveData, "EEPR");
+ int ret = MDFNSS_StateAction(sm, load, data_only, eepromSaveData, "EEPR", false);
 
  if(load)
  {

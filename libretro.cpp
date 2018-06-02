@@ -17,10 +17,6 @@ static retro_audio_sample_batch_t audio_batch_cb;
 static retro_environment_t environ_cb;
 static retro_input_poll_t input_poll_cb;
 static retro_input_state_t input_state_cb;
-
-static retro_rumble_interface rumble;
-
-static bool overscan;
 static double last_sound_rate;
 static MDFN_PixelFormat last_pixel_format;
 
@@ -81,8 +77,6 @@ bool use_mednafen_save_method = false;
 #include <stdarg.h>
 #include <string.h>
 #include <errno.h>
-
-#include "mednafen/FileStream.h"
 
 #ifdef WANT_CRC32
 #include "scrc32.h"
@@ -413,7 +407,7 @@ int StateAction(StateMem *sm, int load, int data_only)
   SFEND
  };
 
- ret &= MDFNSS_StateAction(sm, load, data_only, StateRegs, "MAIN");
+ ret &= MDFNSS_StateAction(sm, load, data_only, StateRegs, "MAIN", false);
 
  SFORMAT RAMState[] =
  {
@@ -426,7 +420,7 @@ int StateAction(StateMem *sm, int load, int data_only)
   SFEND
  };
 
- ret &= MDFNSS_StateAction(sm, load, data_only, RAMState, "RAM");
+ ret &= MDFNSS_StateAction(sm, load, data_only, RAMState, "RAM", false);
 
  if(cpuEEPROMEnabled)
   ret &= EEPROM_StateAction(sm, load, data_only);
@@ -436,7 +430,7 @@ int StateAction(StateMem *sm, int load, int data_only)
  if(GBA_RTC)
   ret &= GBA_RTC->StateAction(sm, load, data_only);
 
- ret &= MDFNSS_StateAction(sm, load, data_only, Joy_StateRegs, "JOY");
+ ret &= MDFNSS_StateAction(sm, load, data_only, Joy_StateRegs, "JOY", false);
  ret &= MDFNGBASOUND_StateAction(sm, load, data_only);
 
  if(load)
@@ -622,57 +616,6 @@ static void CloseGame(void)
  CPUCleanUp();
 }
 
-static bool LoadCPalette(const char *syspalname, uint8 **ptr, uint32 num_entries) MDFN_COLD;
-static bool LoadCPalette(const char *syspalname, uint8 **ptr, uint32 num_entries)
-{
- std::string colormap_fn = MDFN_MakeFName(MDFNMKF_PALETTE, 0, syspalname).c_str();
-
- MDFN_printf(_("Loading custom palette from \"%s\"...\n"),  colormap_fn.c_str());
- MDFN_indent(1);
-
- *ptr = NULL;
- try
- {
-  FileStream fp(colormap_fn.c_str(), FileStream::MODE_READ);
-
-  if(!(*ptr = (uint8 *)malloc(num_entries * 3)))
-  {
-   MDFN_indent(-1);
-   return(false);
-  }
-
-  fp.read(*ptr, num_entries * 3);
- }
- catch(MDFN_Error &e)
- {
-  if(*ptr)
-  {
-   free(*ptr);
-   *ptr = NULL;
-  }
-
-  MDFN_printf(_("Error: %s\n"), e.what());
-  MDFN_indent(-1);
-  return(e.GetErrno() == ENOENT);        // Return fatal error if it's an error other than the file not being found.
- }
- catch(std::exception &e)
- {
-  if(*ptr)
-  {
-   free(*ptr);
-   *ptr = NULL;
-  }
-
-  MDFN_printf(_("Error: %s\n"), e.what());
-  MDFN_indent(-1);
-  return(false);
- }
-
- MDFN_indent(-1);
-
- return(true);
-}
-
 static void RedoColorMap(const MDFN_PixelFormat &format) MDFN_COLD;
 static void RedoColorMap(const MDFN_PixelFormat &format)
 {
@@ -734,7 +677,6 @@ static int Load(const uint8_t *data, size_t size)
    free(rom);
    return(0);
   }
-
 
   {
    uint8 *whereToLoad;
@@ -3620,7 +3562,6 @@ MDFNGI EmulatedGBA =
  2,	// Number of output sound channels
 };
 
-
 static void set_basename(const char *path)
 {
    const char *base = strrchr(path, '/');
@@ -3649,8 +3590,6 @@ static void set_basename(const char *path)
 #define FB_HEIGHT 160
 
 #define FB_MAX_HEIGHT FB_HEIGHT
-
-const char *mednafen_core_str = MEDNAFEN_CORE_NAME;
 
 static bool scan_area(const uint8_t *data, unsigned size)
 {
@@ -3851,9 +3790,6 @@ bool retro_load_game(const struct retro_game_info *info)
    }
 #endif
 
-   overscan = false;
-   environ_cb(RETRO_ENVIRONMENT_GET_OVERSCAN, &overscan);
-
    set_basename(info->path);
 
    check_variables(true);
@@ -3930,10 +3866,6 @@ void retro_unload_game()
    MDFNI_CloseGame();
 }
 
-
-
-// Hardcoded for PSX. No reason to parse lots of structures ...
-// See mednafen/psx/input/gamepad.cpp
 static void update_input(void)
 {
    input_buf = 0;
@@ -4170,6 +4102,7 @@ size_t retro_get_memory_size(unsigned type)
    if (type == RETRO_MEMORY_SAVE_RAM)
       if (!use_mednafen_save_method)
          return libretro_save_size;
+
    return 0;
 }
 
