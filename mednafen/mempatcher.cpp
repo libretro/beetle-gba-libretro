@@ -23,7 +23,6 @@
 #include <vector>
 
 #include "general.h"
-#include "md5.h"
 #include "mempatcher.h"
 
 #ifdef _WIN32
@@ -34,30 +33,24 @@ static uint8 **RAMPtrs = NULL;
 static uint32 PageSize;
 static uint32 NumPages;
 
-typedef struct
-{
- bool excluded;
- uint8 value; 
-} CompareStruct;
-
 typedef struct __CHEATF
 {
-           char *name;
-           char *conditions;
+ char *name;
+ char *conditions;
 
-           uint32 addr;
-           uint64 val;
-           uint64 compare;
+ uint32 addr;
+ uint64 val;
+ uint64 compare;
 
-           unsigned int length;
-           bool bigendian;
-           unsigned int icount; // Instance count
-           char type;   /* 'R' for replace, 'S' for substitute(GG), 'C' for substitute with compare */
-           int status;
+ unsigned int length;
+ bool bigendian;
+ unsigned int icount; // Instance count
+ char type;   /* 'R' for replace, 'S' for substitute(GG), 'C' for substitute with compare */
+ int status;
 } CHEATF;
 
 static std::vector<CHEATF> cheats;
-static CompareStruct **CheatComp = NULL;
+static int savecheats;
 static uint32 resultsbytelen = 1;
 static bool resultsbigendian = 0;
 static bool CheatsActive = TRUE;
@@ -108,7 +101,6 @@ bool MDFNMP_Init(uint32 ps, uint32 numpages)
  NumPages = numpages;
 
  RAMPtrs = (uint8 **)calloc(numpages, sizeof(uint8 *));
- CheatComp = (CompareStruct **)calloc(numpages, sizeof(CompareStruct *));
 
  CheatsActive = MDFN_GetSettingB("cheats");
  return(1);
@@ -116,11 +108,6 @@ bool MDFNMP_Init(uint32 ps, uint32 numpages)
 
 void MDFNMP_Kill(void)
 {
- if(CheatComp)
- {
-  free(CheatComp);
-  CheatComp = NULL;
- }
  if(RAMPtrs)
  {
   free(RAMPtrs);
@@ -145,17 +132,19 @@ void MDFNMP_AddRAM(uint32 size, uint32 A, uint8 *RAM)
 
 void MDFNMP_InstallReadPatches(void)
 {
+ unsigned x;
+ std::vector<SUBCHEAT>::iterator chit;
  if(!CheatsActive) return;
 
- std::vector<SUBCHEAT>::iterator chit;
-
 #if 0
- for(unsigned int x = 0; x < 8; x++)
+ for(x = 0; x < 8; x++)
+ {
   for(chit = SubCheats[x].begin(); chit != SubCheats[x].end(); chit++)
   {
    if(MDFNGameInfo->InstallReadPatch)
     MDFNGameInfo->InstallReadPatch(chit->addr);
   }
+ }
 #endif
 }
 
@@ -193,153 +182,24 @@ static int AddCheatEntry(char *name, char *conditions, uint32 addr, uint64 val, 
  return(1);
 }
 
-static bool SeekToOurSection(void *fp_ptr)
-{
-   FILE *fp = (FILE*)fp_ptr;
-   char buf[2048];
-
-   while(fgets(buf,2048,fp) != NULL)
-   {
-      if(buf[0] == '[')
-      {
-         if(!strncmp((char *)buf + 1, md5_context::asciistr(MDFNGameInfo->MD5, 0).c_str(), 16))
-            return(1);
-      }
-   }
-   return(0);
-}
-
 void MDFN_LoadGameCheats(void *override_ptr)
 {
-   char linebuf[2048];
-   FILE *fp;
-   FILE *override = (FILE*)override_ptr;
-
-   unsigned int addr;
-   unsigned long long val;
-   unsigned int status;
-   char type;
-   unsigned long long compare;
-   unsigned int x;
-   unsigned int length;
-   unsigned int icount;
-   bool bigendian;
-
-   int tc=0;
-
-   if(override)
-      fp = override;
-   else
-   {
-      std::string fn = MDFN_MakeFName(MDFNMKF_CHEAT,0,0).c_str();
-
-      MDFN_printf("\n");
-      MDFN_printf(_("Loading cheats from %s...\n"), fn.c_str());
-      MDFN_indent(1);
-
-      if(!(fp = fopen(fn.c_str(),"rb")))
-      {
-         ErrnoHolder ene(errno);
-
-         MDFN_printf(_("Error opening file: %s\n"), ene.StrError());
-         MDFN_indent(-1);
-         return;
-      }
-   }
-
-   if(SeekToOurSection(fp))
-   {
-      while(fgets(linebuf,2048,fp) != NULL)
-      { 
-         char namebuf[2048];
-         char *tbuf=linebuf;
-
-         addr=val=compare=status=type=0;
-         bigendian = 0;
-         icount = 0;
-
-         if(tbuf[0] == '[') // No more cheats for this game, so sad :(
-         {
-            break;
-         }
-
-         if(tbuf[0] == '\n' || tbuf[0] == '\r' || tbuf[0] == '\t' || tbuf[0] == ' ') // Don't parse if the line starts(or is just) white space
-            continue;
-
-         if(tbuf[0] != 'R' && tbuf[0] != 'C' && tbuf[0] != 'S')
-         {
-            MDFN_printf(_("Invalid cheat type: %c\n"), tbuf[0]);
-            break;
-         }
-         type = tbuf[0];
-         namebuf[0] = 0;
-
-         char status_tmp, endian_tmp;
-         if(type == 'C')
-            sscanf(tbuf, "%c %c %d %c %d %08x %16llx %16llx %2047[^\r\n]", &type, &status_tmp, &length, &endian_tmp, &icount, &addr, &val, &compare, namebuf);
-         else
-            sscanf(tbuf, "%c %c %d %c %d %08x %16llx %2047[^\r\n]", &type, &status_tmp, &length, &endian_tmp, &icount, &addr, &val, namebuf);
-
-         status = (status_tmp == 'A') ? 1 : 0;
-         bigendian = (endian_tmp == 'B') ? 1 : 0;
-
-         for(x=0;x<strlen(namebuf);x++)
-         {
-            if(namebuf[x]==10 || namebuf[x]==13)
-            {
-               namebuf[x]=0;
-               break;
-            }
-            else if(namebuf[x]<0x20) namebuf[x]=' ';
-         }
-
-         // November 9, 2009 return value fix.
-         if(fgets(linebuf, 2048, fp) == NULL)
-            linebuf[0] = 0;
-
-         for(x=0;x<strlen(linebuf);x++)
-         {
-            if(linebuf[x]==10 || linebuf[x]==13)
-            {
-               linebuf[x]=0;
-               break;
-            }
-            else if(linebuf[x]<0x20) linebuf[x]=' ';
-         }
-
-         AddCheatEntry(strdup(namebuf), strdup(linebuf), addr, val, compare, status, type, length, bigendian);
-         tc++;
-      }
-   }
-
-   RebuildSubCheats();
-
-   if(!override)
-   {
-      MDFN_printf(_("%lu cheats loaded.\n"), (unsigned long)cheats.size());
-      MDFN_indent(-1);
-      fclose(fp);
-   }
+ RebuildSubCheats();
 }
 
 void MDFN_FlushGameCheats(int nosave)
 {
-   if(CheatComp)
-   {
-      free(CheatComp);
-      CheatComp = 0;
-   }
+ std::vector<CHEATF>::iterator chit;
 
-   std::vector<CHEATF>::iterator chit;
+ for(chit = cheats.begin(); chit != cheats.end(); chit++)
+ {
+  free(chit->name);
+  if(chit->conditions)
+   free(chit->conditions);
+ }
+ cheats.clear();
 
-   for(chit = cheats.begin(); chit != cheats.end(); chit++)
-   {
-      free(chit->name);
-      if(chit->conditions)
-         free(chit->conditions);
-   }
-   cheats.clear();
-   RebuildSubCheats();
+ RebuildSubCheats();
 }
 
 int MDFNI_AddCheat(const char *name, uint32 addr, uint64 val, uint64 compare, char type, unsigned int length, bool bigendian)
@@ -358,6 +218,8 @@ int MDFNI_AddCheat(const char *name, uint32 addr, uint64 val, uint64 compare, ch
   return(0);
  }
 
+ savecheats = 1;
+
  MDFNMP_RemoveReadPatches();
  RebuildSubCheats();
  MDFNMP_InstallReadPatches();
@@ -369,6 +231,8 @@ int MDFNI_DelCheat(uint32 which)
 {
  free(cheats[which].name);
  cheats.erase(cheats.begin() + which);
+
+ savecheats=1;
 
  MDFNMP_RemoveReadPatches();
  RebuildSubCheats();
@@ -433,7 +297,6 @@ static bool TestConditions(const char *string)
    v_value = strtoull(value, NULL, 0);
 
   value_at_address = 0;
-
 #if 0
   for(unsigned int x = 0; x < bytelen; x++)
   {
@@ -443,7 +306,7 @@ static bool TestConditions(const char *string)
     shiftie = (bytelen - 1 - x) * 8;
    else
     shiftie = x * 8;
-   value_at_address |= MDFNGameInfo->MemRead(v_address + x) << shiftie;
+   value_at_address |= MemRead(v_address + x) << shiftie;
   }
 #endif
 
@@ -525,12 +388,9 @@ void MDFNMP_ApplyPeriodicCheats(void)
 {
  std::vector<CHEATF>::iterator chit;
 
-
  if(!CheatsActive)
   return;
 
- //TestConditions("2 L 0x1F00F5 == 0xDEAD");
- //if(TestConditions("1 L 0x1F0058 > 0")) //, 1 L 0xC000 == 0x01"));
  for(chit = cheats.begin(); chit != cheats.end(); chit++)
  {
   if(chit->status && chit->type == 'R')
@@ -782,6 +642,7 @@ int MDFNI_SetCheat(uint32 which, const char *name, uint32 a, uint64 v, uint64 co
  next->bigendian = bigendian;
 
  RebuildSubCheats();
+ savecheats=1;
 
  return(1);
 }
@@ -790,205 +651,10 @@ int MDFNI_SetCheat(uint32 which, const char *name, uint32 a, uint64 v, uint64 co
 int MDFNI_ToggleCheat(uint32 which)
 {
  cheats[which].status = !cheats[which].status;
+ savecheats = 1;
  RebuildSubCheats();
 
  return(cheats[which].status);
-}
-
-void MDFNI_CheatSearchSetCurrentAsOriginal(void)
-{
- for(uint32 page = 0; page < NumPages; page++)
- {
-  if(CheatComp[page])
-  {
-   for(uint32 addr = 0; addr < PageSize; addr++)
-   {
-    if(!CheatComp[page][addr].excluded)
-    {
-     CheatComp[page][addr].value = RAMPtrs[page][addr];
-    }
-   }
-  }
- }
-}
-
-void MDFNI_CheatSearchShowExcluded(void)
-{
- for(uint32 page = 0; page < NumPages; page++)
- {
-  if(CheatComp[page])
-  {
-   for(uint32 addr = 0; addr < PageSize; addr++)
-   {
-    CheatComp[page][addr].excluded = 0;
-   }
-  }
- }
-}
-
-
-int32 MDFNI_CheatSearchGetCount(void)
-{
- uint32 count = 0;
-
- for(uint32 page = 0; page < NumPages; page++)
- {
-  if(CheatComp[page])
-  {
-   for(uint32 addr = 0; addr < PageSize; addr++)
-   {
-    if(!CheatComp[page][addr].excluded)
-     count++;
-   }
-  }
- }
- return count;
-}
-
-/* This function will give the initial value of the search and the current value at a location. */
-
-void MDFNI_CheatSearchGet(int (*callb)(uint32 a, uint64 last, uint64 current, void *data), void *data)
-{
- for(uint32 page = 0; page < NumPages; page++)
- {
-  if(CheatComp[page])
-  {
-   for(uint32 addr = 0; addr < PageSize; addr++)
-   {
-    if(!CheatComp[page][addr].excluded)
-    {
-     uint64 ccval;
-     uint64 ramval;
-
-     ccval = ramval = 0;
-     for(unsigned int x = 0; x < resultsbytelen; x++)
-     {
-      uint32 curpage = (page + (addr + x) / PageSize) % NumPages;
-      if(CheatComp[curpage])
-      {
-       unsigned int shiftie;
-
-       if(resultsbigendian)
-        shiftie = (resultsbytelen - 1 - x) * 8;
-       else
-        shiftie = x * 8;
-       ccval |= CheatComp[curpage][(addr + x) % PageSize].value << shiftie;
-       ramval |= RAMPtrs[curpage][(addr + x) % PageSize] << shiftie;
-      }
-     }
-
-     if(!callb(page * PageSize + addr, ccval, ramval, data))
-      return;
-    }
-   }
-  }
- }
-}
-
-void MDFNI_CheatSearchBegin(void)
-{
- resultsbytelen = 1;
- resultsbigendian = 0;
-
- for(uint32 page = 0; page < NumPages; page++)
- {
-  if(RAMPtrs[page])
-  {
-   if(!CheatComp[page])
-    CheatComp[page] = (CompareStruct *)calloc(PageSize, sizeof(CompareStruct));
-
-   for(uint32 addr = 0; addr < PageSize; addr++)
-   {
-    CheatComp[page][addr].excluded = 0;
-    CheatComp[page][addr].value = RAMPtrs[page][addr];
-   }
-  }
- }
-}
-
-
-static uint64 INLINE CAbs(uint64 x)
-{
- if(x < 0)
-  return(0 - x);
- return x;
-}
-
-void MDFNI_CheatSearchEnd(int type, uint64 v1, uint64 v2, unsigned int bytelen, bool bigendian)
-{
- v1 &= (~0ULL) >> (8 - bytelen);
- v2 &= (~0ULL) >> (8 - bytelen);
-
- resultsbytelen = bytelen;
- resultsbigendian = bigendian;
-
- for(uint32 page = 0; page < NumPages; page++)
- {
-  if(CheatComp[page])
-  {
-   for(uint32 addr = 0; addr < PageSize; addr++)
-   {
-    if(!CheatComp[page][addr].excluded)
-    {
-     bool doexclude = 0;
-     uint64 ccval;
-     uint64 ramval;
-
-     ccval = ramval = 0;
-     for(unsigned int x = 0; x < bytelen; x++)
-     {
-      uint32 curpage = (page + (addr + x) / PageSize) % NumPages;
-      if(CheatComp[curpage])
-      {
-       unsigned int shiftie;
-
-       if(bigendian)
-        shiftie = (bytelen - 1 - x) * 8;
-       else
-        shiftie = x * 8;
-       ccval |= CheatComp[curpage][(addr + x) % PageSize].value << shiftie;
-       ramval |= RAMPtrs[curpage][(addr + x) % PageSize] << shiftie;
-      }
-     }
-
-     switch(type)
-     {
-      case 0: // Change to a specific value.
-	if(!(ccval == v1 && ramval == v2))
-	 doexclude = 1;
-	break;
-	 
-      case 1: // Search for relative change(between values).
-	if(!(ccval == v1 && CAbs(ccval - ramval) == v2))
-	 doexclude = 1;
-	break;
-
-      case 2: // Purely relative change.
-	if(!(CAbs(ccval - ramval) == v2))
-	 doexclude = 1;
-	break;
-      case 3: // Any change
-        if(!(ccval != ramval))
-         doexclude = 1;
-        break;
-      case 4: // Value decreased
-        if(ramval >= ccval)
-         doexclude = 1;
-        break;
-      case 5: // Value increased
-        if(ramval <= ccval)
-         doexclude = 1;
-        break;
-     }
-     if(doexclude)
-      CheatComp[page][addr].excluded = TRUE;
-    }
-   }
-  }
- }
-
- if(type >= 4)
-  MDFNI_CheatSearchSetCurrentAsOriginal();
 }
 
 static void SettingChanged(const char *name)
@@ -1001,7 +667,6 @@ static void SettingChanged(const char *name)
 
  MDFNMP_InstallReadPatches();
 }
-
 
 MDFNSetting MDFNMP_Settings[] =
 {

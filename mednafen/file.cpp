@@ -16,193 +16,50 @@
  */
 
 #include "mednafen.h"
-#include <stdarg.h>
 #include <string.h>
-#include <errno.h>
-
+#include <streams/file_stream.h>
 #include "file.h"
-#include "general.h"
 
-bool MDFNFILE::ApplyIPS(void *unused)
+struct MDFNFILE *file_open(const char *path)
 {
-   (void)unused;
+   int64_t size          = 0;
+   const char        *ld = NULL;
+   struct MDFNFILE *file = (struct MDFNFILE*)calloc(1, sizeof(*file));
 
-   return 1;
+   if (!file)
+      return NULL;
+
+   if (!filestream_read_file(path, (void**)&file->data, &size))
+      goto error;
+
+   ld         = (const char*)strrchr(path, '.');
+   file->size = (int64_t)size;
+   file->ext  = strdup(ld ? ld + 1 : "");
+
+   return file;
+
+error:
+   if (file)
+      free(file);
+   return NULL;
 }
 
-// This function should ALWAYS close the system file "descriptor"(gzip library, zip library, or FILE *) it's given,
-// even if it errors out.
-bool MDFNFILE::MakeMemWrapAndClose(void *fp)
+int file_close(struct MDFNFILE *file)
 {
-   bool ret = FALSE;
-
-   location = 0;
-
-   ::fseek((FILE *)fp, 0, SEEK_END);
-   f_size = ::ftell((FILE *)fp);
-   ::fseek((FILE *)fp, 0, SEEK_SET);
-
-   if (!(f_data = (uint8*)malloc(f_size)))
-      goto fail;
-   ::fread(f_data, 1, f_size, (FILE *)fp);
-
-   ret = TRUE;
-fail:
-   fclose((FILE*)fp);
-   return ret;
-}
-
-MDFNFILE::MDFNFILE()
-{
-   f_data = NULL;
-   f_size = 0;
-   f_ext = NULL;
-
-   location = 0;
-}
-
-MDFNFILE::MDFNFILE(const char *path, const void *known_ext, const char *purpose)
-{
-   (void)known_ext;
-   if (!Open(path, known_ext, purpose, false))
-      throw(MDFN_Error(0, "TODO ERROR"));
-}
-
-
-MDFNFILE::~MDFNFILE()
-{
-   Close();
-}
-
-
-bool MDFNFILE::Open(const char *path, const void *known_ext, const char *purpose, const bool suppress_notfound_pe)
-{
-   FILE *fp;
-   (void)known_ext;
-
-   if (!(fp = fopen(path, "rb")))
-      return FALSE;
-
-   ::fseek(fp, 0, SEEK_SET);
-
-   if (!MakeMemWrapAndClose(fp))
-      return FALSE;
-
-   const char *ld = (const char*)strrchr(path, '.');
-   f_ext = strdup(ld ? ld + 1 : "");
-
-   return(TRUE);
-}
-
-bool MDFNFILE::Close(void)
-{
-   if (f_ext)
-      free(f_ext);
-   f_ext = 0;
-
-   if (f_data)
-      free(f_data);
-   f_data = 0;
-
-   return(1);
-}
-
-uint64 MDFNFILE::fread(void *ptr, size_t element_size, size_t nmemb)
-{
-   uint32 total = element_size * nmemb;
-
-   if (location >= f_size)
+   if (!file)
       return 0;
 
-   if ((location + total) > f_size)
-   {
-      int64 ak = f_size - location;
+   if (file->ext)
+      free(file->ext);
+   file->ext = NULL;
 
-      memcpy((uint8*)ptr, f_data + location, ak);
+   if (file->data)
+      free(file->data);
+   file->data = NULL;
 
-      location = f_size;
-
-      return(ak / element_size);
-   }
-   else
-   {
-      memcpy((uint8*)ptr, f_data + location, total);
-
-      location += total;
-
-      return nmemb;
-   }
-}
-
-int MDFNFILE::fseek(int64 offset, int whence)
-{
-   switch(whence)
-   {
-      case SEEK_SET:
-         if (offset >= f_size)
-            return -1;
-
-         location = offset;
-         break;
-      case SEEK_CUR:
-         if ((offset + location) > f_size)
-            return -1;
-
-         location += offset;
-         break;
-   }    
-
-   return 0;
-}
-
-int MDFNFILE::read16le(uint16 *val)
-{
-   if ((location + 2) > f_size)
-      return 0;
-
-   *val = MDFN_de16lsb(f_data + location);
-
-   location += 2;
+   free(file);
 
    return 1;
-}
-
-int MDFNFILE::read32le(uint32 *val)
-{
-   if ((location + 4) > f_size)
-      return 0;
-
-   *val = MDFN_de32lsb(f_data + location);
-
-   location += 4;
-
-   return 1;
-}
-
-char *MDFNFILE::fgets(char *s, int buffer_size)
-{
-   int pos = 0;
-
-   if (!buffer_size)
-      return(NULL);
-
-   if (location >= buffer_size)
-      return(NULL);
-
-   while(pos < (buffer_size - 1) && location < buffer_size)
-   {
-      int v = f_data[location];
-      s[pos] = v;
-      location++;
-      pos++;
-      if (v == '\n')
-         break;
-   }
-
-   if (buffer_size)
-      s[pos] = 0;
-
-   return s;
 }
 
 static INLINE bool MDFN_DumpToFileReal(const char *filename, int compress, const std::vector<PtrLengthPair> &pearpairs)

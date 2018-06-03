@@ -701,6 +701,7 @@ static int Load(const uint8_t *data, size_t size)
    md5.update(data, size);
    md5.finish(MDFNGameInfo->MD5);
 
+   MDFN_printf("\n");
    MDFN_printf(_("ROM:       %dKiB\n"), (size + 1023) / 1024);
 #ifdef WANT_CRC32
    MDFN_printf(_("ROM CRC32: 0x%08x\n"), (unsigned int)crc32(0, data, size));
@@ -2153,7 +2154,7 @@ static void FLASH_SRAM_Write(uint32 A, uint32 V)
    cpuFlashEnabled = FALSE;
 
   if(!cpuFlashEnabled || !cpuSramEnabled)
-   printf("%s emulation disabled by write to:  %08x %08x\n", cpuSramEnabled ? "FLASH" : "SRAM", A, V);
+   log_cb(RETRO_LOG_INFO, "%s emulation disabled by write to:  %08x %08x\n", cpuSramEnabled ? "FLASH" : "SRAM", A, V);
  }
 
  if(cpuSramEnabled)
@@ -2679,18 +2680,18 @@ static bool CPUInit(const std::string bios_fn)
    { NULL, NULL }
   };
 
-  MDFNFILE bios_fp;
+  MDFNFILE *bios_fp = file_open(MDFN_MakeFName(MDFNMKF_FIRMWARE, 0, bios_fn.c_str()).c_str());
 
-  if(bios_fp.Open(MDFN_MakeFName(MDFNMKF_FIRMWARE, 0, bios_fn.c_str()), KnownBIOSExtensions, _("GBA BIOS")))
+  if(bios_fp)
   {
-   if(GET_FSIZE(bios_fp) == 0x4000)
+   if(GET_FSIZE_PTR(bios_fp) == 0x4000)
    {
-    memcpy(bios, GET_FDATA(bios_fp), 0x4000);
+    memcpy(bios, GET_FDATA_PTR(bios_fp), 0x4000);
     useBios = true;
    }
    else
     log_cb(RETRO_LOG_WARN, "Invalid BIOS file size.\n");
-   bios_fp.Close();
+   file_close(bios_fp);
   }
   else
    log_cb(RETRO_LOG_WARN, "Cannot find GBA bios file. Using high-level bios emulation.\n");
@@ -3794,7 +3795,6 @@ bool retro_load_game(const struct retro_game_info *info)
 
    check_variables(true);
 
-   MDFN_printf("Loading %s\n", info->path);
    game = MDFNI_LoadGame(MEDNAFEN_CORE_NAME_MODULE, (const uint8_t *)info->data, info->size);
    if (!game)
       return false;
@@ -4153,7 +4153,7 @@ std::string MDFN_MakeFName(MakeFName_Type type, int id1, const char *cd1)
    }
 
    if (log_cb)
-      log_cb(RETRO_LOG_INFO, "MDFN_MakeFName: %s\n", ret.c_str());
+      log_cb(RETRO_LOG_INFO, "MDFN_MakeFName: %s\n\n", ret.c_str());
    return ret;
 }
 
@@ -4198,9 +4198,7 @@ void MDFN_ResetMessages(void)
 MDFNGI *MDFNI_LoadGame(const char *force_module, const uint8_t *data, size_t size)
 {
    MDFNGameInfo = &EmulatedGBA;
-   MDFN_indent(1);
-   MDFN_printf(_("Using module: gba\n\n"));
-   MDFN_indent(1);
+   MDFN_indent(2);
 
    if(Load(data, size) <= 0)
    {
@@ -4212,7 +4210,7 @@ MDFNGI *MDFNI_LoadGame(const char *force_module, const uint8_t *data, size_t siz
    MDFN_LoadGameCheats(NULL);
    MDFNMP_InstallReadPatches();
 
-   MDFN_ResetMessages();   // Save state, status messages, etc.
+   //MDFN_ResetMessages();   // Save state, status messages, etc.
 
    MDFN_indent(-2);
 
