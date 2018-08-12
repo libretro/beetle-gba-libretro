@@ -4091,8 +4091,14 @@ bool retro_unserialize(const void *data, size_t size)
 void *retro_get_memory_data(unsigned type)
 {
    if (type == RETRO_MEMORY_SAVE_RAM)
+   {
       if (!use_mednafen_save_method)
          return libretro_save_buf;
+   }
+   else if ( type == RETRO_MEMORY_SYSTEM_RAM )
+   {
+      return workRAM ;
+   }
 
    return NULL;
 }
@@ -4100,8 +4106,14 @@ void *retro_get_memory_data(unsigned type)
 size_t retro_get_memory_size(unsigned type)
 {
    if (type == RETRO_MEMORY_SAVE_RAM)
+   {
       if (!use_mednafen_save_method)
          return libretro_save_size;
+   }
+   else if ( type == RETRO_MEMORY_SYSTEM_RAM )
+   {
+      return 0x40000 ;
+   }
 
    return 0;
 }
