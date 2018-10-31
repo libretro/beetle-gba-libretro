@@ -178,7 +178,7 @@ else ifeq ($(platform), wiiu)
 # (armv7 a7, hard point, neon based) ### 
 # NESC, SNESC, C64 mini 
 else ifeq ($(platform), classic_armv7_a7)
-	TARGET := $(TARGET_NAME)_libretro.so
+	TARGET := $(TARGET_NAME).so #Good consistency here...
 	fpic := -fPIC
   SHARED := -shared -Wl,--version-script=link.T -Wl,--no-undefined
 	CFLAGS += -Ofast \
