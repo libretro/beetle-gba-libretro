@@ -242,8 +242,8 @@ endif
    FLAGS += -DARM
 else
    TARGET := $(TARGET_NAME).dll
-   CC = gcc
-   CXX = g++
+   CC ?= gcc
+   CXX ?= g++
    IS_X86 = 1
    SHARED := -shared -Wl,--no-undefined -Wl,--version-script=link.T
    LDFLAGS += -static-libgcc -static-libstdc++ -lwinmm
