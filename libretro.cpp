@@ -3578,7 +3578,7 @@ static void set_basename(const char *path)
 }
 
 #define MEDNAFEN_CORE_NAME_MODULE "gba"
-#define MEDNAFEN_CORE_NAME "Mednafen VBA-M"
+#define MEDNAFEN_CORE_NAME "Beetle GBA"
 #define MEDNAFEN_CORE_VERSION "v0.9.36"
 #define MEDNAFEN_CORE_EXTENSIONS "gba|agb|bin"
 #define MEDNAFEN_CORE_TIMING_FPS 59.73
