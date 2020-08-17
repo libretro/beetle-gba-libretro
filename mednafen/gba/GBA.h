@@ -142,4 +142,13 @@ int32 MDFNGBA_GetTimerPeriod(int which);
 
 extern RTC *GBA_RTC;
 
+int Load(const uint8_t *data, size_t size);
+void CloseGame(void);
+void DoSimpleCommand(int cmd);
+void SetInput(unsigned port, const char *type, void *ptr);
+void Emulate(EmulateSpecStruct *espec);
+
+extern MDFNGI EmulatedGBA;
+extern bool use_mednafen_save_method;
+
 #endif //VBA_GBA_H
