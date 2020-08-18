@@ -50,8 +50,21 @@ class RTC
  RTCSTATE state;
  uint8 data[12];
 
- int64 curtime;        // GBA CPU cycles since the Epoch, in local time.
+ uint32 ClockCounter;
 
+ //
+ //
+ //
+ void ClockSeconds(void);
+ bool BCDInc(uint8 &V, uint8 thresh, uint8 reset_val = 0x00);
+
+ uint8 sec;
+ uint8 min;
+ uint8 hour;
+ uint8 wday;
+ uint8 mday;
+ uint8 mon;
+ uint8 year;
 };
 
 #endif
