@@ -20,9 +20,9 @@
 #ifndef VBA_FLASH_H
 #define VBA_FLASH_H
 
-bool GBA_Flash_Init(void) MDFN_COLD;
-void GBA_Flash_Kill(void) MDFN_COLD;
-void GBA_Flash_Reset(void) MDFN_COLD;
+void Flash_Init(void) MDFN_COLD;
+void Flash_Kill(void) MDFN_COLD;
+void Flash_Reset(void) MDFN_COLD;
 
 extern void flashSaveGame(FILE *gzFile) MDFN_COLD;
 extern void flashReadGame(FILE *gzFile, int version) MDFN_COLD;
@@ -33,6 +33,6 @@ extern void flashSetSize(int size);
 
 extern uint32 flashSize;
 
-int GBA_Flash_StateAction(StateMem *sm, int load, int data_only);
+int Flash_StateAction(StateMem *sm, int load, int data_only);
 
 #endif // VBA_FLASH_H

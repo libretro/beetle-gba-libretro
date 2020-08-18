@@ -75,7 +75,7 @@ static bool stopState = false;
 static bool holdState = false;
 static int holdType = 0;
 
-static bool FlashSizeSet; // Set to TRUE if explicitly set by the user
+static bool FlashSizeSet; // Set to true if explicitly set by the user
 bool cpuSramEnabled;
 bool cpuFlashEnabled;
 bool cpuEEPROMEnabled;
@@ -134,7 +134,7 @@ uint8 biosProtected[4];
 
 static const uint32 myROM[] =
 {
- #include "mednafen/gba/myrom.h"
+ #include "myrom.h"
 };
 
 union SysCM
@@ -382,7 +382,7 @@ int StateAction(StateMem *sm, int load, int data_only)
  if(cpuEEPROMEnabled)
   ret &= EEPROM_StateAction(sm, load, data_only);
 
- ret &= GBA_Flash_StateAction(sm, load, data_only);
+ ret &= Flash_StateAction(sm, load, data_only);
 
  if(GBA_RTC)
   ret &= GBA_RTC->StateAction(sm, load, data_only);
@@ -425,9 +425,9 @@ static bool CPUWriteBatteryFile(const char *filename)
    if(!MDFN_DumpToFile(filename, 6, flashSaveMemory, flashSize))
     return(0);
   }
-  return(TRUE);
+  return(true);
  }
- return(FALSE);
+ return(false);
 }
 
 static bool CPUReadBatteryFile(const char *filename) MDFN_COLD;
@@ -437,7 +437,7 @@ static bool CPUReadBatteryFile(const char *filename)
  long size;
 
  if(!gp)
-  return(FALSE);
+  return(false);
 
  size = 0;
  while(gzgetc(gp) != EOF)
@@ -450,9 +450,9 @@ static bool CPUReadBatteryFile(const char *filename)
   if(cpuEEPROMEnabled)
   {
    puts("note:  Loading sav file as eeprom data");
-   GBA_EEPROM_LoadFile(filename);
+   EEPROM_LoadFile(filename);
   }
-  return(FALSE);
+  return(false);
  }
 
  gzseek(gp, 0, SEEK_SET);
@@ -462,12 +462,12 @@ static bool CPUReadBatteryFile(const char *filename)
   if(gzread(gp, flashSaveMemory, 0x20000) != 0x20000)
   {
    gzclose(gp);
-   return(FALSE);
+   return(false);
   }
   if(!FlashSizeSet)
   {
    flashSetSize(0x20000);
-   FlashSizeSet = TRUE;
+   FlashSizeSet = true;
   }
  }
  else
@@ -475,16 +475,16 @@ static bool CPUReadBatteryFile(const char *filename)
   if(gzread(gp, flashSaveMemory, 0x10000) != 0x10000)
   {
    gzclose(gp);
-   return(FALSE);
+   return(false);
   }
   if(!FlashSizeSet)
   {
    flashSetSize(0x10000);
-   FlashSizeSet = TRUE;
+   FlashSizeSet = true;
   }
  }
  gzclose(gp);
- return(TRUE);
+ return(true);
 }
 
 static void CPUCleanUp(void) MDFN_COLD;
@@ -552,7 +552,7 @@ static void CPUCleanUp(void)
 
  MDFNGBASOUND_Kill();
 
- GBA_Flash_Kill();
+ Flash_Kill();
 
  if(GBA_RTC)
  {
@@ -565,7 +565,7 @@ void CloseGame(void)
 {
  if (use_mednafen_save_method)
  {
-   GBA_EEPROM_SaveFile(MDFN_MakeFName(MDFNMKF_SAV, 0, "eep").c_str());
+   EEPROM_SaveFile(MDFN_MakeFName(MDFNMKF_SAV, 0, "eep").c_str());
    CPUWriteBatteryFile(MDFN_MakeFName(MDFNMKF_SAV, 0, "sav").c_str());
  }
 
@@ -655,13 +655,13 @@ int Load(const uint8_t *data, size_t size)
 
    md5_context md5;
    md5.starts();
-   md5.update(data, size);
+   md5.update(whereToLoad, size);
    md5.finish(MDFNGameInfo->MD5);
 
    MDFN_printf("\n");
    MDFN_printf(_("ROM:       %dKiB\n"), (size + 1023) / 1024);
 #ifdef WANT_CRC32
-   MDFN_printf(_("ROM CRC32: 0x%08x\n"), (unsigned int)crc32(0, data, size));
+   MDFN_printf(_("ROM CRC32: 0x%08x\n"), (unsigned int)crc32(0, whereToLoad, size));
 #endif
    MDFN_printf(_("ROM MD5:   0x%s\n"), md5_context::asciistr(MDFNGameInfo->MD5, 0).c_str());
 
@@ -719,8 +719,6 @@ int Load(const uint8_t *data, size_t size)
 
   CPUUpdateRenderBuffers(true);
 
-  MDFNGameInfo->GameSetMD5Valid = FALSE;
-
   MDFNGBASOUND_Init();
 
   {
@@ -737,18 +735,18 @@ int Load(const uint8_t *data, size_t size)
   }
   CPUReset();
 
-  GBA_Flash_Init();
+  Flash_Init();
   eepromInit();
 
   if (use_mednafen_save_method)
   {
-   // EEPROM might be loaded from within CPUReadBatteryFile for support for Mednafen < 0.8.2, so call before GBA_EEPROM_LoadFile(), which
+   // EEPROM might be loaded from within CPUReadBatteryFile for support for Mednafen < 0.8.2, so call before EEPROM_LoadFile(), which
    // is more specific...kinda.
    if(cpuSramEnabled || cpuFlashEnabled)
     CPUReadBatteryFile(MDFN_MakeFName(MDFNMKF_SAV, 0, "sav").c_str());
 
    if(cpuEEPROMEnabled)
-    GBA_EEPROM_LoadFile(MDFN_MakeFName(MDFNMKF_SAV, 0, "eep").c_str());
+    EEPROM_LoadFile(MDFN_MakeFName(MDFNMKF_SAV, 0, "eep").c_str());
   }
 
  return(1);
@@ -2106,9 +2104,9 @@ static void FLASH_SRAM_Write(uint32 A, uint32 V)
  if(cpuFlashEnabled && cpuSramEnabled)
  {
   if((A & 0xFFFF) == 0x5555 && (V & 0xFF) == 0xAA)
-   cpuSramEnabled = FALSE;
+   cpuSramEnabled = false;
   else if((A & 0xFFFF) != 0x2AAA)
-   cpuFlashEnabled = FALSE;
+   cpuFlashEnabled = false;
 
   if(!cpuFlashEnabled || !cpuSramEnabled)
    MDFN_printf("%s emulation disabled by write to:  %08x %08x\n", cpuSramEnabled ? "FLASH" : "SRAM", A, V);
@@ -2476,7 +2474,7 @@ static bool CPUInit(const std::string bios_fn)
  buffer[3] = rom[0xaf];
  buffer[4] = 0;
 
- FlashSizeSet = FALSE;
+ FlashSizeSet = false;
 
  cpuSramEnabled = true;
  cpuFlashEnabled = true;
@@ -2491,10 +2489,10 @@ static bool CPUInit(const std::string bios_fn)
  {
   char linebuffer[256];
 
-  cpuSramEnabled = FALSE;
-  cpuFlashEnabled = FALSE;
-  cpuEEPROMEnabled = FALSE;
-  cpuEEPROMSensorEnabled = FALSE;
+  cpuSramEnabled = false;
+  cpuFlashEnabled = false;
+  cpuEEPROMEnabled = false;
+  cpuEEPROMSensorEnabled = false;
 
   while(fgets(linebuffer, 256, memfp))
   {
@@ -2508,11 +2506,11 @@ static bool CPUInit(const std::string bios_fn)
 
    if(!strcasecmp(args[0], "sram"))
    {
-    cpuSramEnabled = TRUE;
+    cpuSramEnabled = true;
    }
    else if(!strcasecmp(args[0], "flash"))
    {
-    cpuFlashEnabled = TRUE;
+    cpuFlashEnabled = true;
     if(acount == 2)
     {
      int size_temp = atoi(args[1]);
@@ -2520,21 +2518,21 @@ static bool CPUInit(const std::string bios_fn)
      if(size_temp == 0x10000 || size_temp == 0x20000)
      {
       flashSetSize(size_temp);
-      FlashSizeSet = TRUE;
+      FlashSizeSet = true;
      }
      else if(size_temp == 64 || size_temp == 128)
      {
       flashSetSize(size_temp * 1024);
-      FlashSizeSet = TRUE;
+      FlashSizeSet = true;
      }
      else
       puts("Flash size error");
     }
    }
    else if(!strcasecmp(args[0], "eeprom"))
-    cpuEEPROMEnabled = TRUE;
+    cpuEEPROMEnabled = true;
    else if(!strcasecmp(args[0], "sensor"))
-    cpuEEPROMSensorEnabled = TRUE;
+    cpuEEPROMSensorEnabled = true;
    else if(!strcasecmp(args[0], "rtc"))
     GBA_RTC = new RTC();
   }
@@ -2913,8 +2911,8 @@ static void CPUReset(void)
   map[14].address = flashSaveMemory;
   map[14].mask = 0xFFFF;
 
-  eepromReset();
-  GBA_Flash_Reset();
+  EEPROM_Reset();
+  Flash_Reset();
 
   soundReset();
 

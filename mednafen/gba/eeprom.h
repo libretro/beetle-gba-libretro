@@ -20,14 +20,14 @@
 #ifndef VBA_EEPROM_H
 #define VBA_EEPROM_H
 
-bool GBA_EEPROM_SaveFile(const char *filename) MDFN_COLD;
-bool GBA_EEPROM_LoadFile(const char *filename) MDFN_COLD;
+bool EEPROM_SaveFile(const char *filename) MDFN_COLD;
+bool EEPROM_LoadFile(const char *filename) MDFN_COLD;
 int EEPROM_StateAction(StateMem *sm, int load, int data_only) MDFN_COLD;
 
 
 int eepromRead(uint32 address);
 void eepromWrite(uint32 address, uint8 value);
 void eepromInit(void) MDFN_COLD;
-void eepromReset(void) MDFN_COLD;
+void EEPROM_Reset(void) MDFN_COLD;
 
 #endif // VBA_EEPROM_H

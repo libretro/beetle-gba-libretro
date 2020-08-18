@@ -74,7 +74,7 @@ int EEPROM_StateAction(StateMem *sm, int load, int data_only)
  return(ret);
 }
 
-bool GBA_EEPROM_SaveFile(const char *filename)
+bool EEPROM_SaveFile(const char *filename)
 {
  if(eepromInUse)
  {
@@ -85,7 +85,7 @@ bool GBA_EEPROM_SaveFile(const char *filename)
  return(1);
 }
 
-bool GBA_EEPROM_LoadFile(const char *filename)
+bool EEPROM_LoadFile(const char *filename)
 {
  FILE *fp = fopen(filename, "rb");
 
@@ -101,7 +101,7 @@ bool GBA_EEPROM_LoadFile(const char *filename)
   {
    if((long)fread(eepromData, 1, size, fp) == size)
    {
-    eepromInUse = TRUE;
+    eepromInUse = true;
     eepromSize = size;
     fclose(fp);
     return(1);
@@ -126,7 +126,7 @@ void eepromInit(void)
   eepromSize = 512;
 }
 
-void eepromReset(void)
+void EEPROM_Reset(void)
 {
   eepromMode = EEPROM_IDLE;
   eepromByte = 0;

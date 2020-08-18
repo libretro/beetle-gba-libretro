@@ -42,7 +42,7 @@ static int flashDeviceID = 0x1b;
 static int flashManufacturerID = 0x32;
 static int flashBank = 0;
 
-int GBA_Flash_StateAction(StateMem *sm, int load, int data_only)
+int Flash_StateAction(StateMem *sm, int load, int data_only)
 {
  SFORMAT flashSaveData[] =
  {
@@ -67,17 +67,16 @@ int GBA_Flash_StateAction(StateMem *sm, int load, int data_only)
  return(ret);
 };
 
-bool GBA_Flash_Init(void)
+void Flash_Init(void)
 {
  memset(flashSaveMemory, 0xFF, 0x20000);
- return(1);
 }
 
-void GBA_Flash_Kill(void)
+void Flash_Kill(void)
 {
 }
 
-void GBA_Flash_Reset(void)
+void Flash_Reset(void)
 {
   flashState = FLASH_READ_ARRAY;
   flashReadState = FLASH_READ_ARRAY;

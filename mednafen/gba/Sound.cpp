@@ -87,6 +87,7 @@ int MDFNGBASOUND_StateAction(StateMem *sm, int load, int data_only)
   SFVAR(soundDSATimer),
   SFARRAYN(soundDSFifoA, sizeof(soundDSFifoA), "soundDSFifoA"),
   SFVAR(soundDSAValue),
+
   SFVAR(soundDSFifoBIndex),
   SFVAR(soundDSFifoBCount),
   SFVAR(soundDSFifoBWriteIndex),
@@ -347,18 +348,18 @@ static void DSTimer(int which, int dmamask)
 
 void soundTimerOverflow(int timer)
 {
- bool NeedLick = FALSE;
+ bool NeedLick = false;
 
  if(soundDSAEnabled && (soundDSATimer == timer))
  {
   DSTimer(0, 2);
-  NeedLick = TRUE;
+  NeedLick = true;
  }
 
  if(soundDSBEnabled && (soundDSBTimer == timer))
  {
   DSTimer(1, 4);
-  NeedLick = TRUE;
+  NeedLick = true;
  }
 
  if(NeedLick)
@@ -446,5 +447,5 @@ void soundReset()
 bool MDFNGBA_SetSoundRate(uint32 rate)
 {
  gba_buf.set_sample_rate(rate?rate:44100, 60);
- return(TRUE);
+ return(true);
 }
