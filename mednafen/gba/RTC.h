@@ -42,8 +42,8 @@ class RTC
  enum RTCSTATE { IDLE, COMMAND, DATA, READDATA };
 
  uint8 byte0;
- uint8 byte1;
- uint8 byte2;
+ uint8 select;
+ uint8 enable;
  uint8 command;
  int dataLen;
  int bits;
@@ -65,6 +65,10 @@ class RTC
  uint8 mday;
  uint8 mon;
  uint8 year;
+ // reserved data for future expansion
+ uint8 reserved[12];
+ bool reserved2;
+ uint32 reserved3;
 };
 
 #endif

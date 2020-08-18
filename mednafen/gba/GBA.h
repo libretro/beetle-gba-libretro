@@ -151,4 +151,19 @@ void Emulate(EmulateSpecStruct *espec);
 extern MDFNGI EmulatedGBA;
 extern bool use_mednafen_save_method;
 
+// Hardware Sensors
+enum HARDWARE_SENSOR {
+  SENSOR_NONE = 0,
+  SENSOR_SOLAR,
+  SENSOR_TILT,
+  SENSOR_GYRO,
+  SENSOR_RUMBLE
+};
+
+extern HARDWARE_SENSOR hardware;
+
+extern uint8 systemGetSensorDarkness();
+void systemCartridgeRumble(bool);
+int systemGetSensorZ();
+
 #endif //VBA_GBA_H

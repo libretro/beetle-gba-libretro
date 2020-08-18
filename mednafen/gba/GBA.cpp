@@ -132,6 +132,8 @@ uint8 memoryWaitSeq32[16] =
 
 uint8 biosProtected[4];
 
+HARDWARE_SENSOR hardware;
+
 static const uint32 myROM[] =
 {
  #include "myrom.h"

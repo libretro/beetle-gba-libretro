@@ -815,3 +815,17 @@ void MDFN_DebugPrintReal(const char *file, const int line, const char *format, .
 
  va_end(ap);
 }
+
+void systemCartridgeRumble(bool)
+{
+}
+
+uint8 systemGetSensorDarkness()
+{
+   return 0xE8;
+}
+
+int systemGetSensorZ()
+{
+   return 0;
+}

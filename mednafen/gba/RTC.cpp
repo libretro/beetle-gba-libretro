@@ -143,12 +143,31 @@ void RTC::AddTime(int32 amount)
 
 uint16 RTC::Read(uint32 address)
 {
-    if(address == 0x80000c8)
-      return byte2;
-    else if(address == 0x80000c6)
-      return byte1;
-    else if(address == 0x80000c4)
+  if(address == 0x80000c8)
+    return enable;
+  else if(address == 0x80000c6)
+    return select;
+  else if(address == 0x80000c4) {
+    // Boktai Solar Sensor
+    if (select == 7) {
+      if (data[11] >= systemGetSensorDarkness()) {
+        reserved[10] = 0;
+        reserved[11] = 0;
+        return 8;
+      } else
+        return 0;
+    }
+
+    // WarioWare Twisted Tilt Sensor
+    else if (select == 0x0b) {
+      uint16 v = systemGetSensorZ();
+      return ((v >> reserved[11]) & 1) << 2;
+    }
+
+    // Real Time Clock
+    else
       return byte0;
+  }
 
  abort();
 }
@@ -156,11 +175,47 @@ uint16 RTC::Read(uint32 address)
 void RTC::Write(uint32 address, uint16 value)
 {
   if(address == 0x80000c8) {
-    byte2 = (uint8)value; // enable ?
+    enable = (uint8)value; // enable ?
   } else if(address == 0x80000c6) {
-    byte1 = (uint8)value; // read/write
+    select = (uint8)value; // read/write
+    // Rumble Off
+    if (!(value & 8))
+      systemCartridgeRumble(false);
   } else if(address == 0x80000c4) {
-    if(byte2 & 1) {
+    // Rumble (Wario Twister, Drill Dozer)
+    if (select & 8)
+      systemCartridgeRumble(value & 8);
+
+    // Boktai solar sensor
+    if (select == 7) {
+      if (value & 2) {
+        // reset counter to 0
+        reserved[11] = 0;
+        reserved[10] = 0;
+      }
+      if ((value & 1) && (!(reserved[10] & 1))) {
+        // increase counter, ready to do another read
+        if (reserved[11] < 255)
+          reserved[11]++;
+      }
+      reserved[10] = value & select;
+    }
+
+    // WarioWare Twisted rotation sensor
+    if (select == 0xb) {
+      if (value & 2) {
+        // clock goes high in preperation for reading a bit
+        reserved[11]--;
+      }
+      if (value & 1) {
+        // start ADC conversion
+        reserved[11] = 15;
+      }
+      byte0 = value & select;
+      // Real Time Clock
+    }
+
+    if(enable & 1) {
       if(state == IDLE && byte0 == 1 && value == 5) {
           state = COMMAND;
           bits = 0;
@@ -222,7 +277,7 @@ void RTC::Write(uint32 address, uint16 value)
           }
           break;
         case DATA:
-          if(byte1 & 2) {
+          if(select & 2) {
           } else {
             byte0 = (byte0 & ~2) |
               ((data[bits >> 3] >>
@@ -235,7 +290,7 @@ void RTC::Write(uint32 address, uint16 value)
           }
           break;
         case READDATA:
-          if(!(byte1 & 2)) {
+          if(!(select & 2)) {
           } else {
             data[bits >> 3] =
               (data[bits >> 3] >> 1) |
@@ -259,8 +314,8 @@ void RTC::Write(uint32 address, uint16 value)
 void RTC::Reset(void)
 {
  byte0 = 0;
- byte1 = 0;
- byte2 = 0;
+ select = 0;
+ enable = 0;
  command = 0;
  dataLen = 0;
  bits = 0;
@@ -275,8 +330,8 @@ int RTC::StateAction(StateMem *sm, int load, int data_only)
  SFORMAT StateRegs[] = 
  {
   SFVAR(byte0),
-  SFVAR(byte1),
-  SFVAR(byte2),
+  SFVAR(select),
+  SFVAR(enable),
   SFVAR(command),
   SFVAR(dataLen),
   SFVAR(bits),
