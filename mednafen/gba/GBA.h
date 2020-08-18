@@ -142,4 +142,26 @@ int32 MDFNGBA_GetTimerPeriod(int which);
 
 extern RTC *GBA_RTC;
 
+int Load(const uint8_t *data, size_t size);
+void CloseGame(void);
+void DoSimpleCommand(int cmd);
+void SetInput(unsigned port, const char *type, void *ptr);
+void Emulate(EmulateSpecStruct *espec);
+
+extern MDFNGI EmulatedGBA;
+extern bool use_mednafen_save_method;
+
+// Hardware Sensors
+#define SENSOR_NONE (1 << 0)
+#define SENSOR_SOLAR (1 << 1)
+#define SENSOR_TILT (1 << 2)
+#define SENSOR_GYRO (1 << 3)
+#define SENSOR_RUMBLE (1 << 4)
+
+extern int hardware;
+
+extern uint8 systemGetSensorDarkness();
+void systemCartridgeRumble(bool e);
+int systemGetSensorZ();
+
 #endif //VBA_GBA_H

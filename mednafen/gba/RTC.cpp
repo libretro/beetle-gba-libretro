@@ -1,6 +1,7 @@
-// VisualBoyAdvance - Nintendo Gameboy/GameboyAdvance (TM) emulator.
+// Mednafen GBA Emulation Module(based on VisualBoyAdvance)
 // Copyright (C) 1999-2003 Forgotten
 // Copyright (C) 2005 Forgotten and the VBA development team
+// Copyright (C) 2009-2017 Mednafen Team
 
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -25,6 +26,14 @@
 
 RTC::RTC()
 {
+ sec = 0x00;
+ min = 0x00;
+ hour = 0x00;
+ wday = 0x00;
+ mday = 0x01;
+ mon = 0x01;
+ year = 0x00;
+
  InitTime();
  Reset(); 
 }
@@ -32,32 +41,6 @@ RTC::RTC()
 RTC::~RTC()
 {
 
-}
-
-void RTC::InitTime(void)
-{
- time_t long_time;
-
- time( &long_time );                /* Get time as long integer. */
-
- curtime = (int64)long_time * 16777216;
-}
-
-void RTC::AddTime(int32 amount)
-{
- curtime += amount;
-}
-
-uint16 RTC::Read(uint32 address)
-{
-    if(address == 0x80000c8)
-      return byte2;
-    else if(address == 0x80000c6)
-      return byte1;
-    else if(address == 0x80000c4)
-      return byte0;
-
- abort();
 }
 
 static uint8 toBCD(uint8 value)
@@ -68,14 +51,183 @@ static uint8 toBCD(uint8 value)
   return h * 16 + l;
 }
 
+void RTC::InitTime(void)
+{
+ struct tm *toom;
+ time_t long_time;
+ 
+ time( &long_time );                /* Get time as long integer. */
+ toom = localtime( &long_time ); /* Convert to local time. */
+
+ sec = toBCD(toom->tm_sec);
+ min = toBCD(toom->tm_min);
+ hour = toBCD(toom->tm_hour);
+ wday = toBCD(toom->tm_wday);
+ mday = toBCD(toom->tm_mday);
+ mon = toBCD(toom->tm_mon + 1);
+ year = toBCD(toom->tm_year % 100);
+
+ if(sec >= 0x60)	// Murder the leap second.
+  sec = 0x59;
+}
+
+bool RTC::BCDInc(uint8 &V, uint8 thresh, uint8 reset_val)
+{
+ V = ((V + 1) & 0x0F) | (V & 0xF0);
+ if((V & 0x0F) >= 0x0A)
+ {
+  V &= 0xF0;
+  V += 0x10;
+
+  if((V & 0xF0) >= 0xA0)
+  {
+   V &= 0x0F;
+  }
+ }
+
+ if(V >= thresh)
+ {
+  V = reset_val;
+
+  return(true);
+ }
+
+ return(false);
+}
+
+void RTC::ClockSeconds(void)
+{
+ if(BCDInc(sec, 0x60))
+ {
+  if(BCDInc(min, 0x60))
+  {
+   if(BCDInc(hour, 0x24))
+   {
+    uint8 mday_thresh = 0x32;
+
+    if(mon == 0x02)
+    {
+     mday_thresh = 0x29;
+
+     if(((year & 0x0F) % 4) == ((year & 0x10) ? 0x02 : 0x00))
+      mday_thresh = 0x30;
+    }
+    else if(mon == 0x04 || mon == 0x06 || mon == 0x09 || mon == 0x11)
+     mday_thresh = 0x31;
+
+    BCDInc(wday, 0x07);
+
+    if(BCDInc(mday, mday_thresh, 0x01))
+    {
+     if(BCDInc(mon, 0x13, 0x01))
+     {
+      BCDInc(year, 0xA0);
+     }
+    }
+   }
+  }
+ }
+}
+
+
+void RTC::AddTime(int32 amount)
+{
+ ClockCounter += amount;
+
+ while(ClockCounter >= 16777216)
+ {
+  ClockCounter -= 16777216;
+  ClockSeconds();
+ }
+}
+
+uint16 RTC::Read(uint32 address)
+{
+  if (address == 0x80000c8)
+    return enable;
+
+  if (address == 0x80000c6)
+    return select;
+
+  if (address == 0x80000c4) {
+    int ret = 0;
+
+    if (!(enable & 1))
+      return 0;
+
+    // Boktai Solar Sensor
+    if (select == 7) {
+      if (reserved[11] >= systemGetSensorDarkness())
+        ret |= 8;
+    }
+
+    // WarioWare Twisted Tilt Sensor
+    if (select == 0x0b) {
+      uint16 v = systemGetSensorZ() + 0x6C0;
+      ret |= ((v >> reserved[11]) & 1) << 2;
+    }
+
+    // Real Time Clock
+    if (select & 0x04)
+      ret |= byte0;
+
+    return ret;
+  }
+
+  return READ16LE(((uint16*)&rom[address & 0x1FFFFFE]));
+
+ // abort();
+}
+
 void RTC::Write(uint32 address, uint16 value)
 {
   if(address == 0x80000c8) {
-    byte2 = (uint8)value; // enable ?
+    enable = (uint8)value; // enable ?
   } else if(address == 0x80000c6) {
-    byte1 = (uint8)value; // read/write
+    select = (uint8)value; // read/write
+    // Rumble Off
+    if (!(value & 8))
+      systemCartridgeRumble(false);
   } else if(address == 0x80000c4) {
-    if(byte2 & 1) {
+    // Rumble (Wario Twister, Drill Dozer)
+    if (select & 8)
+      systemCartridgeRumble(value & 8);
+
+    // Boktai solar sensor
+    if (select == 7) {
+      if (value & 2) {
+        // reset counter to 0
+        reserved[11] = 0;
+      }
+
+      if ((value & 1) && (!(reserved[10] & 1))) {
+        // increase counter, ready to do another read
+        if (reserved[11] < 255)
+          reserved[11]++;
+        else
+          reserved[11] = 0;
+      }
+
+      reserved[10] = value & select;
+    }
+
+    // WarioWare Twisted rotation sensor
+    if (select == 0xb) {
+      if (value & 2) {
+        // clock goes high in preperation for reading a bit
+        reserved[11]--;
+      }
+
+      if (value & 1) {
+        // start ADC conversion
+        reserved[11] = 15;
+      }
+
+      byte0 = value & select;
+    }
+
+    // Real Time Clock
+    if(select & 1) {
       if(state == IDLE && byte0 == 1 && value == 5) {
           state = COMMAND;
           bits = 0;
@@ -108,36 +260,24 @@ void RTC::Write(uint32 address, uint16 value)
            case 0x64:
               break;
             case 0x65:
-              {
-                struct tm *newtime;
-                time_t long_time;
-
-                long_time = curtime / 16777216;
-                newtime = localtime( &long_time ); /* Convert to local time. */
-                
+              {                
                 dataLen = 7;
-                data[0] = toBCD(newtime->tm_year);
-                data[1] = toBCD(newtime->tm_mon+1);
-                data[2] = toBCD(newtime->tm_mday);
-                data[3] = toBCD(newtime->tm_wday);
-                data[4] = toBCD(newtime->tm_hour);
-                data[5] = toBCD(newtime->tm_min);
-                data[6] = toBCD(newtime->tm_sec);
+                data[0] = year;
+                data[1] = mon;
+                data[2] = mday;
+                data[3] = wday;
+                data[4] = hour;
+                data[5] = min;
+                data[6] = sec;
                 state = DATA;
               }
               break;              
             case 0x67:
               {
-                struct tm *newtime;
-                time_t long_time;
-
-		long_time = curtime / 16777216;
-                newtime = localtime( &long_time ); /* Convert to local time. */
-                
                 dataLen = 3;
-                data[0] = toBCD(newtime->tm_hour);
-                data[1] = toBCD(newtime->tm_min);
-                data[2] = toBCD(newtime->tm_sec);
+                data[0] = hour;
+                data[1] = min;
+                data[2] = sec;
                 state = DATA;
               }
               break;
@@ -149,8 +289,8 @@ void RTC::Write(uint32 address, uint16 value)
           }
           break;
         case DATA:
-          if(byte1 & 2) {
-          } else {
+          if(select & 2) {
+          } else if(select & 4) {
             byte0 = (byte0 & ~2) |
               ((data[bits >> 3] >>
                 (bits & 7)) & 1)*2;
@@ -162,7 +302,7 @@ void RTC::Write(uint32 address, uint16 value)
           }
           break;
         case READDATA:
-          if(!(byte1 & 2)) {
+          if(!(select & 2)) {
           } else {
             data[bits >> 3] =
               (data[bits >> 3] >> 1) |
@@ -186,14 +326,16 @@ void RTC::Write(uint32 address, uint16 value)
 void RTC::Reset(void)
 {
  byte0 = 0;
- byte1 = 0;
- byte2 = 0;
+ select = 0;
+ enable = 0;
  command = 0;
  dataLen = 0;
  bits = 0;
  state = IDLE;
 
  memset(data, 0, sizeof(data));
+ ClockCounter = 0;
+ reserved[11] = 0;
 }
 
 int RTC::StateAction(StateMem *sm, int load, int data_only)
@@ -201,13 +343,28 @@ int RTC::StateAction(StateMem *sm, int load, int data_only)
  SFORMAT StateRegs[] = 
  {
   SFVAR(byte0),
-  SFVAR(byte1),
-  SFVAR(byte2),
+  SFVAR(select),
+  SFVAR(enable),
   SFVAR(command),
   SFVAR(dataLen),
   SFVAR(bits),
   SFVAR(state),
   SFARRAY(data, 12),
+
+  SFVAR(ClockCounter),
+
+  SFVAR(sec),
+  SFVAR(min),
+  SFVAR(hour),
+  SFVAR(wday),
+  SFVAR(mday),
+  SFVAR(mon),
+  SFVAR(year),
+
+  SFARRAY(reserved, 12),
+  SFVAR(reserved2),
+  SFVAR(reserved3),
+
   SFEND
  };
 

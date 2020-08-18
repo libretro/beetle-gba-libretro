@@ -42,16 +42,33 @@ class RTC
  enum RTCSTATE { IDLE, COMMAND, DATA, READDATA };
 
  uint8 byte0;
- uint8 byte1;
- uint8 byte2;
+ uint8 select;
+ uint8 enable;
  uint8 command;
  int dataLen;
  int bits;
  RTCSTATE state;
  uint8 data[12];
 
- int64 curtime;        // GBA CPU cycles since the Epoch, in local time.
+ uint32 ClockCounter;
 
+ //
+ //
+ //
+ void ClockSeconds(void);
+ bool BCDInc(uint8 &V, uint8 thresh, uint8 reset_val = 0x00);
+
+ uint8 sec;
+ uint8 min;
+ uint8 hour;
+ uint8 wday;
+ uint8 mday;
+ uint8 mon;
+ uint8 year;
+ // reserved data for future expansion
+ uint8 reserved[12];
+ bool reserved2;
+ uint32 reserved3;
 };
 
 #endif

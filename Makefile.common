@@ -9,6 +9,7 @@ INCFLAGS := -I$(CORE_DIR) -I$(MEDNAFEN_DIR) -I$(MEDNAFEN_DIR)/include -I$(MEDNAF
 
 ifneq ($(HAVE_GRIFFIN),1)
 SOURCES_CXX += \
+	$(CORE_EMU_DIR)/GBA.cpp \
 	$(CORE_EMU_DIR)/arm.cpp \
 	$(CORE_EMU_DIR)/bios.cpp \
 	$(CORE_EMU_DIR)/eeprom.cpp \
