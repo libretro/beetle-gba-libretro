@@ -132,7 +132,7 @@ uint8 memoryWaitSeq32[16] =
 
 uint8 biosProtected[4];
 
-HARDWARE_SENSOR hardware;
+int hardware;
 
 static const uint32 myROM[] =
 {
@@ -2623,6 +2623,18 @@ static bool CPUInit(const std::string bios_fn)
    }
   }
  }
+
+ // Detect hardware types
+ hardware = SENSOR_NONE;
+ if (buffer[0] == 'R') // Warioware Twisted (cartridge with rumble and z-axis gyro sensor)
+  hardware = SENSOR_RUMBLE | SENSOR_GYRO;
+ else if (buffer[0] == 'U') // Boktai 1 and 2 (cartridge with RTC and solar sensor)
+  hardware = SENSOR_SOLAR;
+ else if (buffer[0] == 'V')
+  hardware = SENSOR_RUMBLE; // Drill Dozer (cartridge with rumble)
+
+ if (hardware != SENSOR_NONE && GBA_RTC == NULL)
+  GBA_RTC = new RTC(); // gpio pins is in RTC module
 
  useBios = false;
 

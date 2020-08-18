@@ -152,18 +152,16 @@ extern MDFNGI EmulatedGBA;
 extern bool use_mednafen_save_method;
 
 // Hardware Sensors
-enum HARDWARE_SENSOR {
-  SENSOR_NONE = 0,
-  SENSOR_SOLAR,
-  SENSOR_TILT,
-  SENSOR_GYRO,
-  SENSOR_RUMBLE
-};
+#define SENSOR_NONE (1 << 0)
+#define SENSOR_SOLAR (1 << 1)
+#define SENSOR_TILT (1 << 2)
+#define SENSOR_GYRO (1 << 3)
+#define SENSOR_RUMBLE (1 << 4)
 
-extern HARDWARE_SENSOR hardware;
+extern int hardware;
 
 extern uint8 systemGetSensorDarkness();
-void systemCartridgeRumble(bool);
+void systemCartridgeRumble(bool e);
 int systemGetSensorZ();
 
 #endif //VBA_GBA_H

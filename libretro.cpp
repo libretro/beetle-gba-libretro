@@ -23,7 +23,15 @@ static retro_audio_sample_batch_t audio_batch_cb;
 static retro_environment_t environ_cb;
 static retro_input_poll_t input_poll_cb;
 static retro_input_state_t input_state_cb;
+static retro_set_rumble_state_t rumble_cb;
+
+static bool rumble_state = false;
+static bool rumble_isrunning = false;
+static int rumble = 0;
+static const int rumble_frames = 4; // delays turning off rumble for N frames;
+
 static double last_sound_rate;
+
 static MDFN_PixelFormat last_pixel_format;
 
 static MDFN_Surface *surf;
@@ -185,6 +193,12 @@ void retro_init(void)
       perf_get_cpu_features_cb = perf_cb.get_cpu_features;
    else
       perf_get_cpu_features_cb = NULL;
+
+   retro_rumble_interface rumble;
+   if (environ_cb(RETRO_ENVIRONMENT_GET_RUMBLE_INTERFACE, &rumble))
+      rumble_cb = rumble.set_rumble_state;
+   else
+      rumble_cb = NULL;
 
    check_system_specs();
 }
@@ -375,6 +389,31 @@ static void update_input(void)
    u.s = input_buf;
    input_buf = u.b[0] | u.b[1] << 8;
 #endif
+   
+   if (rumble_cb)
+   {
+      // Do rumble frames
+      if (rumble_state == true && rumble_isrunning == false)
+      {
+         // Only do rumble callback if not running already
+         rumble_cb(0, RETRO_RUMBLE_WEAK, 0xffff);
+         rumble_cb(0, RETRO_RUMBLE_STRONG, 0xffff);
+         rumble_isrunning = true;
+         rumble = rumble_frames;
+      }
+      else if (rumble && rumble_isrunning)
+      {
+         // Make sure we disable rumble after Nth frames
+         rumble--;
+         if (!rumble)
+         {
+            rumble_cb(0, RETRO_RUMBLE_WEAK, 0);
+            rumble_cb(0, RETRO_RUMBLE_STRONG, 0);
+            rumble_isrunning = false;
+            rumble_state = false;
+         }
+      }
+   }
 }
 
 void retro_run()
@@ -816,8 +855,9 @@ void MDFN_DebugPrintReal(const char *file, const int line, const char *format, .
  va_end(ap);
 }
 
-void systemCartridgeRumble(bool)
+void systemCartridgeRumble(bool e)
 {
+   rumble_state = e;
 }
 
 uint8 systemGetSensorDarkness()
