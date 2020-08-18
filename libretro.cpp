@@ -30,6 +30,9 @@ static bool rumble_isrunning = false;
 static int rumble = 0;
 static const int rumble_frames = 4; // delays turning off rumble for N frames;
 
+static uint8 sensorDarkness = 0xE8;
+static uint8 sensorDarknessLevel = 0;
+
 static double last_sound_rate;
 
 static MDFN_PixelFormat last_pixel_format;
@@ -269,6 +272,8 @@ bool retro_load_game(const struct retro_game_info *info)
       { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R,     "R" },
       { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_SELECT, "Select" },
       { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_START, "Start" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L2,     "Solar Level Decrease" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R2,     "Solar Level Increase" },
 
       { 0 },
    };
@@ -360,6 +365,26 @@ void retro_unload_game()
    MDFNI_CloseGame();
 }
 
+static void systemUpdateSolarSensor(int v)
+{
+    int value = 0;
+    switch (v) {
+    case 1:  value = 0x06; break;
+    case 2:  value = 0x0E; break;
+    case 3:  value = 0x18; break;
+    case 4:  value = 0x20; break;
+    case 5:  value = 0x28; break;
+    case 6:  value = 0x38; break;
+    case 7:  value = 0x48; break;
+    case 8:  value = 0x60; break;
+    case 9:  value = 0x78; break;
+    case 10: value = 0x98; break;
+    default: break;
+    }
+
+    sensorDarkness = 0xE8 - value;
+}
+
 static void update_input(void)
 {
    input_buf = 0;
@@ -390,7 +415,7 @@ static void update_input(void)
    input_buf = u.b[0] | u.b[1] << 8;
 #endif
    
-   if (rumble_cb)
+   if ((hardware & SENSOR_RUMBLE) && rumble_cb)
    {
       // Do rumble frames
       if (rumble_state == true && rumble_isrunning == false)
@@ -411,6 +436,27 @@ static void update_input(void)
             rumble_cb(0, RETRO_RUMBLE_STRONG, 0);
             rumble_isrunning = false;
             rumble_state = false;
+         }
+      }
+   }
+
+   if (hardware & SENSOR_SOLAR) {
+      static bool buttonpressed = false;
+      if (buttonpressed) {
+         buttonpressed = input_state_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R2) ||
+            input_state_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L2);
+      } else {
+         if (input_state_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R2)) {
+            sensorDarknessLevel++;
+            if (sensorDarknessLevel > 10)
+               sensorDarknessLevel = 10;
+            systemUpdateSolarSensor(sensorDarknessLevel);
+            buttonpressed = true;
+         } else if (input_state_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L2)) {
+            if (sensorDarknessLevel)
+               sensorDarknessLevel--;
+            systemUpdateSolarSensor(sensorDarknessLevel);
+            buttonpressed = true;
          }
       }
    }
@@ -862,7 +908,7 @@ void systemCartridgeRumble(bool e)
 
 uint8 systemGetSensorDarkness()
 {
-   return 0xE8;
+   return sensorDarkness;
 }
 
 int systemGetSensorZ()
