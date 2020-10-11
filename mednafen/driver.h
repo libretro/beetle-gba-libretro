@@ -3,7 +3,7 @@
 
 #include "mednafen-types.h"
 #include "git.h"
-#include "settings-driver.h"
+#include "settings.h"
 #include "mednafen-driver.h"
 #include "state-driver.h"
 #include "mempatcher-driver.h"

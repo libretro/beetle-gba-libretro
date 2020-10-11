@@ -23,11 +23,6 @@
 
 uint32_t setting_gba_hle = 1;
 
-bool MDFN_SaveSettings(const char *path)
-{
-   return(1);
-}
-
 uint64 MDFN_GetSettingUI(const char *name)
 {
 
@@ -102,23 +97,4 @@ std::string MDFN_GetSettingS(const char *name)
       return retro_base_name + std::string(".bsv");
    fprintf(stderr, "unhandled setting S: %s\n", name);
    return 0;
-}
-
-bool MDFNI_SetSetting(const char *name, const char *value, bool NetplayOverride)
-{
-   return false;
-}
-
-bool MDFNI_SetSettingB(const char *name, bool value)
-{
-   return false;
-}
-
-bool MDFNI_SetSettingUI(const char *name, uint64 value)
-{
-   return false;
-}
-
-void MDFNI_DumpSettingsDef(const char *path)
-{
 }
