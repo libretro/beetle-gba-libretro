@@ -1,7 +1,7 @@
 /* Copyright  (C) 2010-2020 The RetroArch team
  *
  * ---------------------------------------------------------------------------------------
- * The following license statement only applies to this file (compat_strl.c).
+ * The following license statement only applies to this file (posix_string.h).
  * ---------------------------------------------------------------------------------------
  *
  * Permission is hereby granted, free of charge,
@@ -20,50 +20,41 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <stdlib.h>
-#include <ctype.h>
+#ifndef __LIBRETRO_SDK_COMPAT_POSIX_STRING_H
+#define __LIBRETRO_SDK_COMPAT_POSIX_STRING_H
 
-#include <compat/strl.h>
+#include <retro_common_api.h>
 
-/* Implementation of strlcpy()/strlcat() based on OpenBSD. */
-
-#ifndef __MACH__
-
-size_t strlcpy(char *dest, const char *source, size_t size)
-{
-   size_t src_size = 0;
-   size_t        n = size;
-
-   if (n)
-      while (--n && (*dest++ = *source++)) src_size++;
-
-   if (!n)
-   {
-      if (size) *dest = '\0';
-      while (*source++) src_size++;
-   }
-
-   return src_size;
-}
-
-size_t strlcat(char *dest, const char *source, size_t size)
-{
-   size_t len = strlen(dest);
-
-   dest += len;
-
-   if (len > size)
-      size = 0;
-   else
-      size -= len;
-
-   return len + strlcpy(dest, source, size);
-}
+#ifdef _MSC_VER
+#include <compat/msvc.h>
 #endif
 
-char *strldup(const char *s, size_t n)
-{
-   char *dst = (char*)malloc(sizeof(char) * (n + 1));
-   strlcpy(dst, s, n);
-   return dst;
-}
+RETRO_BEGIN_DECLS
+
+#ifdef _WIN32
+#undef strtok_r
+#define strtok_r(str, delim, saveptr) retro_strtok_r__(str, delim, saveptr)
+
+char *strtok_r(char *str, const char *delim, char **saveptr);
+#endif
+
+#ifdef _MSC_VER
+#undef strcasecmp
+#undef strdup
+#define strcasecmp(a, b) retro_strcasecmp__(a, b)
+#define strdup(orig)     retro_strdup__(orig)
+int strcasecmp(const char *a, const char *b);
+char *strdup(const char *orig);
+
+/* isblank is available since MSVC 2013 */
+#if _MSC_VER < 1800
+#undef isblank
+#define isblank(c)       retro_isblank__(c)
+int isblank(int c);
+#endif
+
+#endif
+
+RETRO_END_DECLS
+
+#endif

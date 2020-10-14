@@ -1,7 +1,7 @@
 /* Copyright  (C) 2010-2020 The RetroArch team
  *
  * ---------------------------------------------------------------------------------------
- * The following license statement only applies to this file (compat_strl.c).
+ * The following license statement only applies to this file (rtime.h).
  * ---------------------------------------------------------------------------------------
  *
  * Permission is hereby granted, free of charge,
@@ -20,50 +20,29 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <stdlib.h>
-#include <ctype.h>
+#ifndef __LIBRETRO_SDK_RTIME_H__
+#define __LIBRETRO_SDK_RTIME_H__
 
-#include <compat/strl.h>
+#include <retro_common_api.h>
 
-/* Implementation of strlcpy()/strlcat() based on OpenBSD. */
+#include <stdint.h>
+#include <stddef.h>
+#include <time.h>
 
-#ifndef __MACH__
+RETRO_BEGIN_DECLS
 
-size_t strlcpy(char *dest, const char *source, size_t size)
-{
-   size_t src_size = 0;
-   size_t        n = size;
+/* TODO/FIXME: Move all generic time handling functions
+ * to this file */
 
-   if (n)
-      while (--n && (*dest++ = *source++)) src_size++;
+/* Must be called before using rtime_localtime() */
+void rtime_init(void);
 
-   if (!n)
-   {
-      if (size) *dest = '\0';
-      while (*source++) src_size++;
-   }
+/* Must be called upon program termination */
+void rtime_deinit(void);
 
-   return src_size;
-}
+/* Thread-safe wrapper for localtime() */
+struct tm *rtime_localtime(const time_t *timep, struct tm *result);
 
-size_t strlcat(char *dest, const char *source, size_t size)
-{
-   size_t len = strlen(dest);
+RETRO_END_DECLS
 
-   dest += len;
-
-   if (len > size)
-      size = 0;
-   else
-      size -= len;
-
-   return len + strlcpy(dest, source, size);
-}
 #endif
-
-char *strldup(const char *s, size_t n)
-{
-   char *dst = (char*)malloc(sizeof(char) * (n + 1));
-   strlcpy(dst, s, n);
-   return dst;
-}

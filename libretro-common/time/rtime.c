@@ -1,7 +1,7 @@
 /* Copyright  (C) 2010-2020 The RetroArch team
  *
  * ---------------------------------------------------------------------------------------
- * The following license statement only applies to this file (compat_strl.c).
+ * The following license statement only applies to this file (rtime.c).
  * ---------------------------------------------------------------------------------------
  *
  * Permission is hereby granted, free of charge,
@@ -20,50 +20,62 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#ifdef HAVE_THREADS
+#include <rthreads/rthreads.h>
+#include <retro_assert.h>
 #include <stdlib.h>
-#include <ctype.h>
-
-#include <compat/strl.h>
-
-/* Implementation of strlcpy()/strlcat() based on OpenBSD. */
-
-#ifndef __MACH__
-
-size_t strlcpy(char *dest, const char *source, size_t size)
-{
-   size_t src_size = 0;
-   size_t        n = size;
-
-   if (n)
-      while (--n && (*dest++ = *source++)) src_size++;
-
-   if (!n)
-   {
-      if (size) *dest = '\0';
-      while (*source++) src_size++;
-   }
-
-   return src_size;
-}
-
-size_t strlcat(char *dest, const char *source, size_t size)
-{
-   size_t len = strlen(dest);
-
-   dest += len;
-
-   if (len > size)
-      size = 0;
-   else
-      size -= len;
-
-   return len + strlcpy(dest, source, size);
-}
 #endif
 
-char *strldup(const char *s, size_t n)
+#include <string.h>
+#include <time/rtime.h>
+
+#ifdef HAVE_THREADS
+/* TODO/FIXME - global */
+slock_t *rtime_localtime_lock = NULL;
+#endif
+
+/* Must be called before using rtime_localtime() */
+void rtime_init(void)
 {
-   char *dst = (char*)malloc(sizeof(char) * (n + 1));
-   strlcpy(dst, s, n);
-   return dst;
+   rtime_deinit();
+#ifdef HAVE_THREADS
+   if (!rtime_localtime_lock)
+      rtime_localtime_lock = slock_new();
+
+   retro_assert(rtime_localtime_lock);
+#endif
+}
+
+/* Must be called upon program termination */
+void rtime_deinit(void)
+{
+#ifdef HAVE_THREADS
+   if (rtime_localtime_lock)
+   {
+      slock_free(rtime_localtime_lock);
+      rtime_localtime_lock = NULL;
+   }
+#endif
+}
+
+/* Thread-safe wrapper for localtime() */
+struct tm *rtime_localtime(const time_t *timep, struct tm *result)
+{
+   struct tm *time_info = NULL;
+
+   /* Lock mutex */
+#ifdef HAVE_THREADS
+   slock_lock(rtime_localtime_lock);
+#endif
+
+   time_info = localtime(timep);
+   if (time_info)
+      memcpy(result, time_info, sizeof(struct tm));
+
+   /* Unlock mutex */
+#ifdef HAVE_THREADS
+   slock_unlock(rtime_localtime_lock);
+#endif
+
+   return result;
 }
