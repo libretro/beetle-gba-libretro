@@ -81,6 +81,7 @@ else ifneq (,$(findstring ios,$(platform)))
    TARGET := $(TARGET_NAME)_ios.dylib
    fpic := -fPIC
    SHARED := -dynamiclib
+   MINVERSION :=
    LDFLAGS += $(PTHREAD_FLAGS)
    FLAGS += $(PTHREAD_FLAGS)
 
@@ -94,16 +95,13 @@ else
    CC = cc -arch armv7 -isysroot $(IOSSDK)
    CXX = c++ -arch armv7 -isysroot $(IOSSDK)
 endif
-IPHONEMINVER :=
 ifeq ($(platform),$(filter $(platform),ios9 ios-arm64))
-	IPHONEMINVER = -miphoneos-version-min=8.0
+   MINVERSION   = -miphoneos-version-min=8.0
 else
-	IPHONEMINVER = -miphoneos-version-min=5.0
+   MINVRESION   = -miphoneos-version-min=5.0
 endif
-   LDFLAGS += $(IPHONEMINVER)
-   FLAGS += $(IPHONEMINVER)
-   CC += $(IPHONEMINVER)
-   CXX += $(IPHONEMINVER)
+   LDFLAGS += $(MINVERSION)
+   FLAGS += $(MINVERSION)
 
 # tvOS
 else ifeq ($(platform), tvos-arm64)
@@ -116,6 +114,9 @@ else ifeq ($(platform), tvos-arm64)
 ifeq ($(IOSSDK),)
    IOSSDK := $(shell xcodebuild -version -sdk appletvos Path)
 endif
+
+   CC = cc -arch arm64 -isysroot $(IOSSDK)
+   CXX = c++ -arch arm64 -isysroot $(IOSSDK)
 
 else ifeq ($(platform), qnx)
    TARGET := $(TARGET_NAME)_qnx.so
