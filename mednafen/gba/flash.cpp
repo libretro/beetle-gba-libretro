@@ -183,12 +183,12 @@ void flashWrite(uint32 address, uint8 byte)
     if(byte == 0x30) {
       // SECTOR ERASE
       memset(&flashSaveMemory[(flashBank << 16) + (address & 0xF000)],
-             0x00,
+             0xff,
              0x1000);
       flashReadState = FLASH_ERASE_COMPLETE;
     } else if(byte == 0x10) {
       // CHIP ERASE
-      memset(flashSaveMemory, 0, flashSize);
+      memset(flashSaveMemory, 0xff, flashSize);
       flashReadState = FLASH_ERASE_COMPLETE;
     } else {
       flashState = FLASH_READ_ARRAY;
