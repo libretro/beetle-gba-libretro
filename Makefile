@@ -98,7 +98,7 @@ endif
 ifeq ($(platform),$(filter $(platform),ios9 ios-arm64))
    MINVERSION   = -miphoneos-version-min=8.0
 else
-   MINVRESION   = -miphoneos-version-min=5.0
+   MINVERSION   = -miphoneos-version-min=5.0
 endif
    LDFLAGS += $(MINVERSION)
    FLAGS += $(MINVERSION)
@@ -117,6 +117,9 @@ endif
 
    CC = cc -arch arm64 -isysroot $(IOSSDK)
    CXX = c++ -arch arm64 -isysroot $(IOSSDK)
+   MINVERSION   = -mappletvos-version-min=11.0
+   LDFLAGS += $(MINVERSION)
+   FLAGS += $(MINVERSION)
 
 else ifeq ($(platform), qnx)
    TARGET := $(TARGET_NAME)_qnx.so
